@@ -55,6 +55,60 @@
     }
   }
 
+  async function optionalRequestResult(path, options){
+    try { return {available:true,data:await request(path,options),error:null}; }
+    catch(error){
+      console.warn('Optional HOME31 data source unavailable:', path, error.message);
+      return {available:false,data:[],error:error.message||'Unavailable'};
+    }
+  }
+
+  function ensureDemoPhase3(db){
+    db.benefitMeasurements = db.benefitMeasurements || [];
+    db.cbaReviews = db.cbaReviews || [];
+    db.financeUpdates = db.financeUpdates || [];
+    db.continuityLinks = db.continuityLinks || [];
+    db.decisionReadinessModels = db.decisionReadinessModels || [{id:'drm-default',code:'HOME31_DEFAULT_V1',name:'HOME31 Default Decision Readiness',status:'ACTIVE',isDefault:true,effectiveFrom:new Date().toISOString().slice(0,10)}];
+    db.decisionReadinessWeights = db.decisionReadinessWeights || [
+      ['STRATEGIC_ALIGNMENT','Strategic alignment',15,1],['OWNERSHIP','Ownership',10,2],['VALUE_CBA','Value and CBA',15,3],['FINANCE','Finance',15,4],['DELIVERY_PLAN','Delivery plan',15,5],['RISK','Risk',10,6],['HR_CHANGE','HR and change',10,7],['ICT','ICT',5,8],['EVIDENCE','Evidence',5,9]
+    ].map(function(row,index){return{id:'drw-'+index,modelId:'drm-default',dimensionCode:row[0],dimensionLabel:row[1],weightPercentage:row[2],displayOrder:row[3],isRequired:true};});
+    db.decisionReadinessAssessments = db.decisionReadinessAssessments || [];
+    return db;
+  }
+
+  function latestByDate(rows,dateKey){
+    return rows.slice().sort(function(a,b){return String(b[dateKey]||'').localeCompare(String(a[dateKey]||''))||String(b.updatedAt||'').localeCompare(String(a.updatedAt||''));})[0]||null;
+  }
+
+  function hydrateDemoPhase3(db){
+    ensureDemoPhase3(db);
+    db.initiatives.forEach(function(item){
+      var cycleId=item.cycleId||item.id;item.cycleId=cycleId;
+      var benefit=latestByDate(db.benefitMeasurements.filter(function(x){return x.initiativeCycleId===cycleId;}),'measurementDate');
+      var cba=db.cbaReviews.filter(function(x){return x.initiativeCycleId===cycleId&&x.isCurrent!==false;}).slice(-1)[0]||null;
+      var finance=latestByDate(db.financeUpdates.filter(function(x){return x.initiativeCycleId===cycleId;}),'reportingDate');
+      var readiness=db.decisionReadinessAssessments.filter(function(x){return x.initiativeCycleId===cycleId&&x.isCurrent!==false;}).slice(-1)[0]||null;
+      item.phase3={
+        latestBenefitMeasurementId:benefit&&benefit.id,latestBenefitMeasurementDate:benefit&&benefit.measurementDate,
+        actualValueText:benefit&&benefit.actualValueText,actualValueNumeric:benefit&&benefit.actualValueNumeric,actualValueUnit:benefit&&benefit.actualValueUnit,
+        benefitStatus:benefit&&benefit.benefitStatus,benefitCommentary:benefit&&benefit.commentary,nextMeasurementDate:benefit&&benefit.nextMeasurementDate,
+        currentCbaReviewId:cba&&cba.id,cbaReviewDate:cba&&cba.reviewDate,governedCbaRatio:cba&&cba.cbaRatio,cbaValidationStatus:cba&&cba.validationStatus,
+        cbaMethodologyReference:cba&&cba.methodologyReference,cbaFinanceReviewComments:cba&&cba.financeReviewComments,managementTreatment:cba&&cba.managementTreatment,
+        latestFinanceUpdateId:finance&&finance.id,financeReportingDate:finance&&finance.reportingDate,committedAmount:finance&&finance.committedAmount,
+        utilisedAmount:finance&&finance.utilisedAmount,forecastAtCompletion:finance&&finance.forecastAtCompletion,varianceCommentary:finance&&finance.varianceCommentary,
+        currentReadinessAssessmentId:readiness&&readiness.id,readinessModelId:readiness&&readiness.modelId,readinessAssessmentDate:readiness&&readiness.assessmentDate,
+        decisionReadinessScore:readiness&&readiness.readinessScore,decisionReadinessStatus:readiness&&readiness.readinessStatus,
+        decisionReadinessDimensionScores:readiness&&readiness.dimensionScores,decisionReadinessNotes:readiness&&readiness.assessmentNotes
+      };
+      if(finance){
+        if(finance.committedAmount!==null&&finance.committedAmount!==undefined)item.committedBudget=Number(finance.committedAmount);
+        if(finance.utilisedAmount!==null&&finance.utilisedAmount!==undefined)item.utilisedBudget=Number(finance.utilisedAmount);
+        if(finance.forecastAtCompletion!==null&&finance.forecastAtCompletion!==undefined)item.forecastBudget=Number(finance.forecastAtCompletion);
+      }
+    });
+    return db;
+  }
+
   function extractCycleId(result){
     var value = Array.isArray(result) ? result[0] : result;
     if(!value) return null;
@@ -138,11 +192,21 @@
     scoped.milestones = scoped.milestones.filter(function(m){return projectIds.indexOf(m.projectId)>=0;});
     scoped.risks = scoped.risks.filter(function(r){return projectIds.indexOf(r.projectId)>=0;});
     scoped.users = scoped.users.filter(function(u){return u.departmentId===user.departmentId || u.id===user.id;});
+    var cycleIds=scoped.initiatives.map(function(i){return i.cycleId||i.id;});
+    scoped.benefitMeasurements=(scoped.benefitMeasurements||[]).filter(function(x){return cycleIds.indexOf(x.initiativeCycleId)>=0;});
+    scoped.cbaReviews=(scoped.cbaReviews||[]).filter(function(x){return cycleIds.indexOf(x.initiativeCycleId)>=0;});
+    scoped.financeUpdates=(scoped.financeUpdates||[]).filter(function(x){return cycleIds.indexOf(x.initiativeCycleId)>=0;});
+    scoped.decisionReadinessAssessments=(scoped.decisionReadinessAssessments||[]).filter(function(x){return cycleIds.indexOf(x.initiativeCycleId)>=0;});
+    scoped.continuityLinks=(scoped.continuityLinks||[]).filter(function(x){return cycleIds.indexOf(x.previousCycleId)>=0||cycleIds.indexOf(x.currentCycleId)>=0;});
     return scoped;
   }
 
   async function loadData(user){
-    if(!isLive()) return applyDemoScope(getDemoDb(),user);
+    if(!isLive()){
+      var demo=hydrateDemoPhase3(getDemoDb());
+      saveDemoDb(demo);
+      return applyDemoScope(demo,user);
+    }
     var results = await Promise.all([
       request('/rest/v1/departments?select=id,code,name,status&status=eq.ACTIVE&order=name'),
       request('/rest/v1/reporting_years?select=id,year,display_name,is_active&order=year'),
@@ -151,12 +215,32 @@
       request('/rest/v1/portfolios?select=id,code,name,status&status=eq.ACTIVE&order=name'),
       request('/rest/v1/strategic_pillars?select=id,code,name,status&status=eq.ACTIVE&order=name'),
       request('/rest/v1/user_directory_view?select=*&order=full_name'),
-      optionalRequest('/rest/v1/initiative_form_submissions?select=initiative_cycle_id,form_version,form_data,updated_at')
+      optionalRequest('/rest/v1/initiative_form_submissions?select=initiative_cycle_id,form_version,form_data,updated_at'),
+      optionalRequestResult('/rest/v1/initiative_phase3_overview_v?select=*'),
+      optionalRequestResult('/rest/v1/initiative_continuity_overview_v?select=*&order=updated_at.desc'),
+      optionalRequestResult('/rest/v1/decision_readiness_models?select=id,code,name,description,status,effective_from,effective_to,is_default&status=eq.ACTIVE&order=is_default.desc,effective_from.desc'),
+      optionalRequestResult('/rest/v1/decision_readiness_weights?select=id,model_id,dimension_code,dimension_label,weight_percentage,display_order,is_required&order=display_order')
     ]);
     var formMap = {};
     (results[7] || []).forEach(function(row){ formMap[row.initiative_cycle_id] = row.form_data || {}; });
+    var phase3Map = {};
+    (results[8].data || []).forEach(function(row){
+      phase3Map[row.initiative_cycle_id]={
+        latestBenefitMeasurementId:row.latest_benefit_measurement_id,latestBenefitMeasurementDate:row.latest_benefit_measurement_date,
+        actualValueText:row.actual_value_text,actualValueNumeric:row.actual_value_numeric===null?null:Number(row.actual_value_numeric),actualValueUnit:row.actual_value_unit,
+        benefitStatus:row.benefit_status,benefitCommentary:row.benefit_commentary,nextMeasurementDate:row.next_measurement_date,
+        currentCbaReviewId:row.current_cba_review_id,cbaReviewDate:row.cba_review_date,governedCbaRatio:row.governed_cba_ratio===null?null:Number(row.governed_cba_ratio),
+        cbaValidationStatus:row.cba_validation_status,cbaMethodologyReference:row.cba_methodology_reference,cbaFinanceReviewComments:row.cba_finance_review_comments,
+        managementTreatment:row.management_treatment,latestFinanceUpdateId:row.latest_finance_update_id,financeReportingDate:row.finance_reporting_date,
+        committedAmount:row.committed_amount===null?null:Number(row.committed_amount),utilisedAmount:row.utilised_amount===null?null:Number(row.utilised_amount),
+        forecastAtCompletion:row.forecast_at_completion===null?null:Number(row.forecast_at_completion),varianceCommentary:row.variance_commentary,
+        currentReadinessAssessmentId:row.current_readiness_assessment_id,readinessModelId:row.readiness_model_id,readinessAssessmentDate:row.readiness_assessment_date,
+        decisionReadinessScore:row.decision_readiness_score===null?null:Number(row.decision_readiness_score),decisionReadinessStatus:row.decision_readiness_status,
+        decisionReadinessDimensionScores:row.decision_readiness_dimension_scores||{},decisionReadinessNotes:row.decision_readiness_notes
+      };
+    });
     var initiatives = results[2].map(function(i){
-      var formData = formMap[i.cycle_id] || {};
+      var formData = formMap[i.cycle_id] || {},phase3=phase3Map[i.cycle_id]||{};
       return {
         id:i.initiative_id,cycleId:i.cycle_id,code:i.initiative_code,title:i.initiative_title,
         description:formData.projectDescription || i.description || '',portfolioId:i.portfolio_id,portfolioName:i.portfolio_name,
@@ -165,8 +249,10 @@
         strategicPillarName:i.strategic_pillar_name,reportingYearId:i.reporting_year_id,year:i.reporting_year,
         classification:i.initiative_type,status:i.cycle_status,startDate:i.planned_start_date,targetDate:i.planned_end_date,
         progress:Number(i.progress_percentage||0),priority:i.priority || 'MEDIUM',requestedBudget:Number(i.requested_budget||0),
-        approvedBudget:Number(i.approved_budget||0),committedBudget:Number(i.committed_amount||0),utilisedBudget:Number(i.utilised_amount||0),
-        forecastBudget:Number(i.forecast_amount||0),archived:false,formData:formData
+        approvedBudget:Number(i.approved_budget||0),committedBudget:phase3.committedAmount!==null&&phase3.committedAmount!==undefined?Number(phase3.committedAmount):Number(i.committed_amount||0),
+        utilisedBudget:phase3.utilisedAmount!==null&&phase3.utilisedAmount!==undefined?Number(phase3.utilisedAmount):Number(i.utilised_amount||0),
+        forecastBudget:phase3.forecastAtCompletion!==null&&phase3.forecastAtCompletion!==undefined?Number(phase3.forecastAtCompletion):Number(i.forecast_amount||0),
+        archived:false,formData:formData,phase3:phase3
       };
     });
     var projects = results[3].map(function(p){return {
@@ -177,12 +263,23 @@
       progress:Number(p.progress_percentage||0),budget:0,spent:0,description:'',milestoneCount:p.milestone_count,openRisks:p.open_risks
     };});
     return {
-      version:2,
+      version:3,
       departments:results[0].map(function(d){return{id:d.id,code:d.code,name:d.name,active:d.status==='ACTIVE'};}),
       reportingYears:results[1].map(function(y){return{id:y.id,year:y.year,label:y.display_name,active:y.is_active};}),
       initiatives:initiatives,projects:projects,milestones:[],risks:[],
       users:results[6].map(function(u){return{id:u.id,name:u.full_name,email:u.email,role:(u.roles&&u.roles[0])||'END_USER',departmentId:u.home_department_id,status:u.account_status,mustChangePassword:u.must_change_password,lastLogin:u.last_sign_in_at};}),
-      portfolios:results[4],strategicPillars:results[5],audit:[]
+      portfolios:results[4],strategicPillars:results[5],audit:[],
+      continuityLinks:(results[9].data||[]).map(function(row){return{id:row.id,previousCycleId:row.previous_cycle_id,currentCycleId:row.current_cycle_id,continuityType:row.continuity_type,matchConfidence:row.match_confidence===null?null:Number(row.match_confidence),matchMethod:row.match_method,approvedBudgetMovement:row.approved_budget_movement===null?null:Number(row.approved_budget_movement),cbaRatioMovement:row.cba_ratio_movement===null?null:Number(row.cba_ratio_movement),scopeChangeExplanation:row.scope_change_explanation,managementStatus:row.management_status,confirmedBy:row.confirmed_by,confirmedAt:row.confirmed_at,updatedAt:row.updated_at};}),
+      decisionReadinessModels:(results[10].data||[]).map(function(row){return{id:row.id,code:row.code,name:row.name,description:row.description,status:row.status,effectiveFrom:row.effective_from,effectiveTo:row.effective_to,isDefault:row.is_default};}),
+      decisionReadinessWeights:(results[11].data||[]).map(function(row){return{id:row.id,modelId:row.model_id,dimensionCode:row.dimension_code,dimensionLabel:row.dimension_label,weightPercentage:Number(row.weight_percentage||0),displayOrder:Number(row.display_order||0),isRequired:row.is_required};}),
+      capabilities:{
+        phase3:results[8].available,
+        continuity:results[9].available,
+        readiness:results[10].available&&results[11].available,
+        phase3Error:results[8].error||null,
+        continuityError:results[9].error||null,
+        readinessError:results[10].error||results[11].error||null
+      }
     };
   }
 
@@ -286,10 +383,87 @@
     return request(path,{method:record.id?'PATCH':'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({year:Number(record.year),display_name:record.label,is_active:record.active===true})});
   }
 
+
+  async function loadPhase3History(cycleId){
+    if(!cycleId) throw new Error('Choose an initiative cycle.');
+    if(!isLive()){
+      var db=ensureDemoPhase3(getDemoDb());
+      return {
+        benefits:db.benefitMeasurements.filter(function(x){return x.initiativeCycleId===cycleId;}).sort(function(a,b){return String(b.measurementDate).localeCompare(String(a.measurementDate));}),
+        cbaReviews:db.cbaReviews.filter(function(x){return x.initiativeCycleId===cycleId;}).sort(function(a,b){return String(b.reviewDate).localeCompare(String(a.reviewDate));}),
+        financeUpdates:db.financeUpdates.filter(function(x){return x.initiativeCycleId===cycleId;}).sort(function(a,b){return String(b.reportingDate).localeCompare(String(a.reportingDate));}),
+        readinessAssessments:db.decisionReadinessAssessments.filter(function(x){return x.initiativeCycleId===cycleId;}).sort(function(a,b){return String(b.assessmentDate).localeCompare(String(a.assessmentDate));}),
+        continuityLinks:db.continuityLinks.filter(function(x){return x.previousCycleId===cycleId||x.currentCycleId===cycleId;})
+      };
+    }
+    var encoded=encodeURIComponent(cycleId);
+    var rows=await Promise.all([
+      request('/rest/v1/initiative_benefit_measurements?select=*&initiative_cycle_id=eq.'+encoded+'&order=measurement_date.desc,created_at.desc'),
+      request('/rest/v1/initiative_cba_reviews?select=*&initiative_cycle_id=eq.'+encoded+'&order=review_date.desc,created_at.desc'),
+      request('/rest/v1/initiative_finance_updates?select=*&initiative_cycle_id=eq.'+encoded+'&order=reporting_date.desc,created_at.desc'),
+      request('/rest/v1/initiative_decision_readiness_assessments?select=*&initiative_cycle_id=eq.'+encoded+'&order=assessment_date.desc,created_at.desc'),
+      request('/rest/v1/initiative_continuity_overview_v?select=*&or=(previous_cycle_id.eq.'+encoded+',current_cycle_id.eq.'+encoded+')&order=updated_at.desc')
+    ]);
+    return {
+      benefits:rows[0].map(function(x){return{id:x.id,initiativeCycleId:x.initiative_cycle_id,measurementDate:x.measurement_date,actualValueText:x.actual_value_text,actualValueNumeric:x.actual_value_numeric===null?null:Number(x.actual_value_numeric),actualValueUnit:x.actual_value_unit,benefitStatus:x.benefit_status,commentary:x.commentary,nextMeasurementDate:x.next_measurement_date,measuredBy:x.measured_by};}),
+      cbaReviews:rows[1].map(function(x){return{id:x.id,initiativeCycleId:x.initiative_cycle_id,reviewDate:x.review_date,cbaRatio:x.cba_ratio===null?null:Number(x.cba_ratio),validationStatus:x.validation_status,methodologyReference:x.methodology_reference,financeReviewComments:x.finance_review_comments,managementTreatment:x.management_treatment,validatedBy:x.validated_by,validatedAt:x.validated_at,isCurrent:x.is_current};}),
+      financeUpdates:rows[2].map(function(x){return{id:x.id,initiativeCycleId:x.initiative_cycle_id,reportingDate:x.reporting_date,committedAmount:x.committed_amount===null?null:Number(x.committed_amount),utilisedAmount:x.utilised_amount===null?null:Number(x.utilised_amount),forecastAtCompletion:x.forecast_at_completion===null?null:Number(x.forecast_at_completion),varianceCommentary:x.variance_commentary,financeUpdateOwnerId:x.finance_update_owner_id};}),
+      readinessAssessments:rows[3].map(function(x){return{id:x.id,initiativeCycleId:x.initiative_cycle_id,modelId:x.model_id,assessmentDate:x.assessment_date,readinessScore:Number(x.readiness_score),readinessStatus:x.readiness_status,dimensionScores:x.dimension_scores||{},assessmentNotes:x.assessment_notes,isCurrent:x.is_current};}),
+      continuityLinks:rows[4].map(function(x){return{id:x.id,previousCycleId:x.previous_cycle_id,currentCycleId:x.current_cycle_id,continuityType:x.continuity_type,matchConfidence:x.match_confidence===null?null:Number(x.match_confidence),matchMethod:x.match_method,approvedBudgetMovement:x.approved_budget_movement===null?null:Number(x.approved_budget_movement),cbaRatioMovement:x.cba_ratio_movement===null?null:Number(x.cba_ratio_movement),scopeChangeExplanation:x.scope_change_explanation,managementStatus:x.management_status,confirmedBy:x.confirmed_by,confirmedAt:x.confirmed_at};})
+    };
+  }
+
+  async function saveBenefitMeasurement(record,user){
+    if(!isLive()){
+      var db=ensureDemoPhase3(getDemoDb()),existing=record.id&&db.benefitMeasurements.find(function(x){return x.id===record.id;});
+      var row=Object.assign({},record,{id:record.id||uid('benefit'),initiativeCycleId:record.initiativeCycleId,measuredBy:record.measuredBy||user.id,updatedAt:new Date().toISOString()});
+      if(existing)Object.assign(existing,row);else{var conflict=db.benefitMeasurements.find(function(x){return x.initiativeCycleId===row.initiativeCycleId&&x.measurementDate===row.measurementDate;});if(conflict)Object.assign(conflict,row,{id:conflict.id});else db.benefitMeasurements.push(row);}
+      demoAudit(db,user,existing?'UPDATE':'CREATE','Benefit Measurement','Updated benefits realisation.');saveDemoDb(hydrateDemoPhase3(db));return row.id;
+    }
+    return request('/rest/v1/rpc/save_benefit_measurement',{method:'POST',body:JSON.stringify({p_id:record.id||null,p_initiative_cycle_id:record.initiativeCycleId,p_measurement_date:record.measurementDate,p_actual_value_text:record.actualValueText||null,p_actual_value_numeric:record.actualValueNumeric,p_actual_value_unit:record.actualValueUnit||null,p_benefit_status:record.benefitStatus,p_commentary:record.commentary||null,p_next_measurement_date:record.nextMeasurementDate||null,p_measured_by:record.measuredBy||user.id})});
+  }
+
+  async function saveCbaReview(record,user){
+    if(!isLive()){
+      var db=ensureDemoPhase3(getDemoDb());db.cbaReviews.forEach(function(x){if(x.initiativeCycleId===record.initiativeCycleId)x.isCurrent=false;});
+      var row=Object.assign({},record,{id:uid('cba'),validatedBy:record.validationStatus==='VALIDATED'?(record.validatedBy||user.id):null,validatedAt:record.validationStatus==='VALIDATED'?(record.validatedAt||new Date().toISOString()):null,isCurrent:true,updatedAt:new Date().toISOString()});db.cbaReviews.push(row);demoAudit(db,user,'CREATE','CBA Review','Recorded CBA governance review.');saveDemoDb(hydrateDemoPhase3(db));return row.id;
+    }
+    var validated=record.validationStatus==='VALIDATED';
+    return request('/rest/v1/rpc/save_cba_review',{method:'POST',body:JSON.stringify({p_initiative_cycle_id:record.initiativeCycleId,p_review_date:record.reviewDate,p_cba_ratio:record.cbaRatio,p_validation_status:record.validationStatus,p_methodology_reference:record.methodologyReference||null,p_finance_review_comments:record.financeReviewComments||null,p_management_treatment:record.managementTreatment||null,p_validated_by:validated?(record.validatedBy||user.id):null,p_validated_at:validated?(record.validatedAt||new Date().toISOString()):null})});
+  }
+
+  async function saveFinanceUpdate(record,user){
+    if(!isLive()){
+      var db=ensureDemoPhase3(getDemoDb()),existing=record.id&&db.financeUpdates.find(function(x){return x.id===record.id;});
+      var row=Object.assign({},record,{id:record.id||uid('finance'),financeUpdateOwnerId:record.financeUpdateOwnerId||user.id,updatedAt:new Date().toISOString()});
+      if(existing)Object.assign(existing,row);else{var conflict=db.financeUpdates.find(function(x){return x.initiativeCycleId===row.initiativeCycleId&&x.reportingDate===row.reportingDate;});if(conflict)Object.assign(conflict,row,{id:conflict.id});else db.financeUpdates.push(row);}demoAudit(db,user,existing?'UPDATE':'CREATE','Finance Update','Recorded budget execution update.');saveDemoDb(hydrateDemoPhase3(db));return row.id;
+    }
+    return request('/rest/v1/rpc/save_finance_update',{method:'POST',body:JSON.stringify({p_id:record.id||null,p_initiative_cycle_id:record.initiativeCycleId,p_reporting_date:record.reportingDate,p_committed_amount:record.committedAmount,p_utilised_amount:record.utilisedAmount,p_forecast_at_completion:record.forecastAtCompletion,p_variance_commentary:record.varianceCommentary||null,p_finance_update_owner_id:record.financeUpdateOwnerId||user.id})});
+  }
+
+  async function saveContinuityLink(record,user){
+    if(!isLive()){
+      var db=ensureDemoPhase3(getDemoDb()),existing=record.id&&db.continuityLinks.find(function(x){return x.id===record.id;});
+      var confirmed=record.managementStatus==='CONFIRMED',row=Object.assign({},record,{id:record.id||uid('continuity'),confirmedBy:confirmed?(record.confirmedBy||user.id):null,confirmedAt:confirmed?(record.confirmedAt||new Date().toISOString()):null,updatedAt:new Date().toISOString()});
+      if(existing)Object.assign(existing,row);else db.continuityLinks.push(row);demoAudit(db,user,existing?'UPDATE':'CREATE','AMP Continuity','Recorded AMP continuity treatment.');saveDemoDb(db);return row.id;
+    }
+    var confirmed=record.managementStatus==='CONFIRMED';
+    return request('/rest/v1/rpc/save_continuity_link',{method:'POST',body:JSON.stringify({p_id:record.id||null,p_previous_cycle_id:record.previousCycleId||null,p_current_cycle_id:record.currentCycleId||null,p_continuity_type:record.continuityType,p_match_confidence:record.matchConfidence,p_match_method:record.matchMethod||null,p_approved_budget_movement:record.approvedBudgetMovement,p_cba_ratio_movement:record.cbaRatioMovement,p_scope_change_explanation:record.scopeChangeExplanation||null,p_management_status:record.managementStatus,p_confirmed_by:confirmed?(record.confirmedBy||user.id):null,p_confirmed_at:confirmed?(record.confirmedAt||new Date().toISOString()):null})});
+  }
+
+  async function saveDecisionReadinessAssessment(record,user){
+    if(!isLive()){
+      var db=ensureDemoPhase3(getDemoDb());db.decisionReadinessAssessments.forEach(function(x){if(x.initiativeCycleId===record.initiativeCycleId)x.isCurrent=false;});
+      var row=Object.assign({},record,{id:uid('readiness'),assessedBy:user.id,isCurrent:true,updatedAt:new Date().toISOString()});db.decisionReadinessAssessments.push(row);demoAudit(db,user,'CREATE','Decision Readiness','Recorded decision-readiness assessment.');saveDemoDb(hydrateDemoPhase3(db));return row.id;
+    }
+    return request('/rest/v1/rpc/save_decision_readiness_assessment',{method:'POST',body:JSON.stringify({p_initiative_cycle_id:record.initiativeCycleId,p_model_id:record.modelId,p_assessment_date:record.assessmentDate,p_readiness_score:record.readinessScore,p_readiness_status:record.readinessStatus,p_dimension_scores:record.dimensionScores||{},p_assessment_notes:record.assessmentNotes||null})});
+  }
+
   function resetDemo(){ storageRemove(STORAGE_KEY); storageRemove(SESSION_KEY); return getDemoDb(); }
 
   window.HOME31_API={
     config:config,isLive:isLive,roleLabel:roleLabel,signIn:signIn,signOut:signOut,getCurrentUser:getCurrentUser,changePassword:changePassword,loadData:loadData,
-    saveInitiative:saveInitiative,archiveInitiative:archiveInitiative,saveProject:saveProject,saveUser:saveUser,updateUserStatus:updateUserStatus,saveDepartment:saveDepartment,saveYear:saveYear,resetDemo:resetDemo
+    saveInitiative:saveInitiative,archiveInitiative:archiveInitiative,saveProject:saveProject,saveUser:saveUser,updateUserStatus:updateUserStatus,saveDepartment:saveDepartment,saveYear:saveYear,
+    loadPhase3History:loadPhase3History,saveBenefitMeasurement:saveBenefitMeasurement,saveCbaReview:saveCbaReview,saveFinanceUpdate:saveFinanceUpdate,saveContinuityLink:saveContinuityLink,saveDecisionReadinessAssessment:saveDecisionReadinessAssessment,resetDemo:resetDemo
   };
 })();
