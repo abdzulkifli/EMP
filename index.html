@@ -1,83 +1,346 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b2538">
-  <meta name="description" content="HOME31 enterprise portfolio, initiative, project and budget dashboard">
-  <title>HOME31 Executive Command Center</title>
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="assets/css/styles.css?v=7.2-admin">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HOME31 Executive Command Center 2.0</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <noscript><div class="fatal">HOME31 requires JavaScript to run.</div></noscript>
-
-  <section id="login-screen" class="login-screen" aria-labelledby="login-title">
-    <div class="login-visual">
-      <div class="login-brand"><span class="brand-mark">H31</span><div><strong>HOME31</strong><small>Enterprise Portfolio Management</small></div></div>
-      <div class="login-copy">
-        <span class="eyebrow light">Enterprise planning & delivery</span>
-        <h1>One trusted view of portfolio, budget and execution.</h1>
-        <p>Track annual AMP initiatives, projects, milestones, risks and approvals with department-level access control.</p>
-      </div>
-      <div class="login-highlights">
-        <div><strong>Dynamic years</strong><span>Plan beyond 2031 without code changes.</span></div>
-        <div><strong>Exact budgets</strong><span>Approved Budget is the official cost basis.</span></div>
-        <div><strong>Role scoped</strong><span>Users see only authorised departments.</span></div>
-      </div>
-    </div>
-    <div class="login-panel">
-      <form id="login-form" class="login-card" autocomplete="on">
-        <div class="login-icon">🔐</div>
-        <h2 id="login-title">Sign in to HOME31</h2>
-        <p id="mode-copy">Use the demo account below. Supabase can be enabled later in <code>config.js</code>.</p>
-        <div id="login-alert" class="alert danger hidden" role="alert"></div>
-        <label class="field"><span>Email</span><input id="login-email" type="email" autocomplete="username" required value="admin@home31.demo"></label>
-        <label class="field"><span>Password</span><input id="login-password" type="password" autocomplete="current-password" required value="Home31!Demo"></label>
-        <button class="btn primary wide" type="submit">Sign in</button>
-        <div class="demo-credentials">
-          <strong>Demo accounts</strong>
-          <span>Administrator: admin@home31.demo / Home31!Demo</span>
-          <span>End user: user@home31.demo / Home31!User</span>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">H31</div>
+        <div>
+          <strong>HOME31</strong>
+          <span>Enterprise Portfolio</span>
         </div>
-      </form>
-    </div>
-  </section>
-
-  <div id="app-shell" class="app-shell hidden">
-    <header class="topbar">
-      <div class="topbar-brand"><span class="brand-mark small">H31</span><div><strong>HOME31</strong><small>Executive Command Center</small></div></div>
-      <button id="mobile-menu" class="icon-button mobile-only" aria-label="Toggle navigation">☰</button>
-      <nav id="main-nav" class="main-nav" aria-label="Primary navigation"></nav>
-      <div class="topbar-actions">
-        <button id="quick-add" class="btn compact primary">＋ New</button>
-        <button id="user-menu-button" class="user-chip" aria-haspopup="true"><span id="user-avatar" class="avatar">AZ</span><span><strong id="user-name">User</strong><small id="user-role">Role</small></span></button>
       </div>
-    </header>
 
-    <div id="user-menu" class="dropdown hidden">
-      <button data-route="profile">My profile</button>
-      <button id="change-password-action">Change password</button>
-      <button id="logout-action" class="danger-text">Sign out</button>
-    </div>
+      <nav class="nav">
+        <button class="nav-item active" data-target="command-center">Command Center</button>
+        <button class="nav-item" data-target="portfolio">Portfolio Intelligence</button>
+        <button class="nav-item" data-target="investment">Investment & Value</button>
+        <button class="nav-item" data-target="delivery">Delivery & Risk</button>
+        <button class="nav-item" data-target="governance">Governance</button>
+        <button class="nav-item" data-target="register">Delivery Register</button>
+      </nav>
 
-    <main id="page-root" class="page-root" tabindex="-1"></main>
-    <footer class="footer"><span>HOME31 Enterprise Portfolio Management</span><span id="footer-mode">Demo mode</span></footer>
+      <div class="sidebar-footer">
+        <div class="user-avatar">AZ</div>
+        <div>
+          <strong>Abdullah Zulkifli</strong>
+          <span>Super Administrator</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="icon-btn" id="menuBtn" aria-label="Toggle navigation">☰</button>
+        <div>
+          <p class="eyebrow">HOME31 · ENTERPRISE COMMAND CENTER</p>
+          <h1>Executive Portfolio Command Center</h1>
+          <p class="subtitle">One management view of strategy, investment value, delivery, assurance and decisions.</p>
+        </div>
+        <div class="top-actions">
+          <button class="btn btn-ghost" onclick="window.print()">Print</button>
+          <button class="btn btn-primary" id="newAction">＋ New action</button>
+        </div>
+      </header>
+
+      <section class="filter-bar">
+        <label>Year
+          <select id="yearFilter">
+            <option value="all">All years</option>
+            <option value="2027">AMP 2027</option>
+          </select>
+        </label>
+        <label>Department
+          <select id="departmentFilter">
+            <option value="all">All departments</option>
+            <option value="CPS">Corporate Planning & Strategy</option>
+            <option value="APSH">Administration, Procurement & Safety</option>
+          </select>
+        </label>
+        <label>Risk
+          <select id="riskFilter">
+            <option value="all">All risk</option>
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+          </select>
+        </label>
+        <button class="btn btn-ghost" id="resetFilters">Reset</button>
+      </section>
+
+      <section id="command-center" class="page-section active-section">
+        <div class="hero-grid">
+          <article class="health-card">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">ENTERPRISE HEALTH</p>
+                <h2>Portfolio Health Score</h2>
+              </div>
+              <span class="status-pill watch">WATCH</span>
+            </div>
+            <div class="gauge-wrap">
+              <div class="gauge" style="--score: 68">
+                <div class="gauge-center">
+                  <strong>68</strong>
+                  <span>/100</span>
+                </div>
+              </div>
+              <div class="health-breakdown">
+                <div><span>Delivery</span><strong>58%</strong></div>
+                <div><span>Investment</span><strong>82%</strong></div>
+                <div><span>Readiness</span><strong>50%</strong></div>
+                <div><span>Governance</span><strong>66%</strong></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="insight-card">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">AI EXECUTIVE BRIEF</p>
+                <h2>Management Meaning</h2>
+              </div>
+              <span class="small-tag">Updated now</span>
+            </div>
+            <p class="insight-lead">The portfolio remains financially covered, but both active initiatives require management attention.</p>
+            <ul class="insight-list">
+              <li><strong>Project Kambing</strong> has the largest approved budget and requires Finance confirmation.</li>
+              <li><strong>Project Makan</strong> has stronger delivery progress but weak evidence completeness.</li>
+              <li>Readiness remains below 70% across the current portfolio.</li>
+            </ul>
+            <button class="btn btn-dark" data-target="governance">Open decisions queue</button>
+          </article>
+        </div>
+
+        <div class="kpi-grid">
+          <button class="kpi-card">
+            <span class="kpi-label">Approved Budget</span>
+            <strong>RM 1.40M</strong>
+            <span class="kpi-note positive">100% coverage</span>
+          </button>
+          <button class="kpi-card">
+            <span class="kpi-label">Active Delivery</span>
+            <strong>2</strong>
+            <span class="kpi-note">2 initiatives · 0 projects</span>
+          </button>
+          <button class="kpi-card">
+            <span class="kpi-label">At Risk</span>
+            <strong>2</strong>
+            <span class="kpi-note warning">2 watch · 0 critical</span>
+          </button>
+          <button class="kpi-card">
+            <span class="kpi-label">Decisions Required</span>
+            <strong>2</strong>
+            <span class="kpi-note warning">Management action pending</span>
+          </button>
+          <button class="kpi-card">
+            <span class="kpi-label">Portfolio CBA</span>
+            <strong>1.13</strong>
+            <span class="kpi-note positive">2 assessed cases</span>
+          </button>
+          <button class="kpi-card">
+            <span class="kpi-label">Evidence Quality</span>
+            <strong>50%</strong>
+            <span class="kpi-note warning">Closure required</span>
+          </button>
+        </div>
+
+        <div class="dashboard-grid two-one">
+          <article class="panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">PRIORITISATION</p>
+                <h2>Portfolio Intervention Map</h2>
+              </div>
+              <span class="small-tag">Budget × value × risk</span>
+            </div>
+            <div class="matrix-chart" aria-label="Portfolio intervention matrix">
+              <div class="axis y-axis">Delivery Risk</div>
+              <div class="axis x-axis">Strategic Value</div>
+              <div class="quadrant q1">Monitor closely</div>
+              <div class="quadrant q2">Intervene now</div>
+              <div class="quadrant q3">Low priority</div>
+              <div class="quadrant q4">Protect & accelerate</div>
+              <button class="bubble bubble-a" title="Project Kambing">Kambing</button>
+              <button class="bubble bubble-b" title="Project Makan">Makan</button>
+            </div>
+          </article>
+
+          <article class="panel attention-panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">MANAGEMENT ATTENTION</p>
+                <h2>Exception Queue</h2>
+              </div>
+            </div>
+            <div class="exception-item">
+              <span class="dot amber"></span>
+              <div><strong>Project Kambing</strong><span>CBA governance review</span></div>
+              <button class="text-btn">Manage</button>
+            </div>
+            <div class="exception-item">
+              <span class="dot amber"></span>
+              <div><strong>Project Makan</strong><span>HOME31 fit validation</span></div>
+              <button class="text-btn">Manage</button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="portfolio" class="page-section">
+        <div class="section-title-row">
+          <div><p class="eyebrow">PORTFOLIO INTELLIGENCE</p><h2>Strategy and portfolio concentration</h2></div>
+        </div>
+        <div class="dashboard-grid equal">
+          <article class="panel">
+            <h3>Strategic Pillar Allocation</h3>
+            <div class="donut-row">
+              <div class="donut" style="--a:43; --b:57"></div>
+              <div class="legend">
+                <div><span class="swatch s1"></span><b>Financial Sustainability</b><em>RM 800K</em></div>
+                <div><span class="swatch s2"></span><b>Customer Experience</b><em>RM 600K</em></div>
+              </div>
+            </div>
+          </article>
+          <article class="panel">
+            <h3>Strategic Alignment Radar</h3>
+            <div class="radar-wrap">
+              <svg viewBox="0 0 300 260" class="radar" role="img" aria-label="Strategic alignment radar">
+                <polygon points="150,20 270,105 225,235 75,235 30,105" class="radar-grid"/>
+                <polygon points="150,50 238,112 205,205 95,205 62,112" class="radar-grid"/>
+                <polygon points="150,80 205,120 185,175 115,175 95,120" class="radar-grid"/>
+                <polygon points="150,45 230,115 200,210 90,190 70,120" class="radar-area"/>
+                <text x="150" y="14">Financial</text><text x="255" y="100">Digital</text>
+                <text x="220" y="252">Governance</text><text x="18" y="252">Customer</text><text x="0" y="100">Workforce</text>
+              </svg>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="investment" class="page-section">
+        <div class="section-title-row">
+          <div><p class="eyebrow">INVESTMENT & VALUE</p><h2>Budget challenge and benefits realisation</h2></div>
+        </div>
+        <div class="dashboard-grid equal">
+          <article class="panel">
+            <h3>Budget Waterfall</h3>
+            <div class="waterfall">
+              <div class="wf-col"><span>RM10.6M</span><div style="height:190px"></div><label>Initial estimate</label></div>
+              <div class="wf-col negative"><span>-RM9.0M</span><div style="height:160px"></div><label>Challenge savings</label></div>
+              <div class="wf-col"><span>RM1.6M</span><div style="height:75px"></div><label>Post-challenge</label></div>
+              <div class="wf-col"><span>RM1.4M</span><div style="height:65px"></div><label>Approved budget</label></div>
+            </div>
+          </article>
+          <article class="panel">
+            <h3>Benefits Realisation</h3>
+            <div class="benefit-chart">
+              <div class="benefit-line target"><span>Target</span></div>
+              <div class="benefit-line actual"><span>Actual</span></div>
+              <div class="chart-axis-labels"><span>2027</span><span>2028</span><span>2029</span><span>2030</span><span>2031</span></div>
+            </div>
+            <div class="mini-summary"><strong>0%</strong><span>Actual benefits recorded to date</span></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="delivery" class="page-section">
+        <div class="section-title-row">
+          <div><p class="eyebrow">DELIVERY & RISK</p><h2>Execution performance and risk exposure</h2></div>
+        </div>
+        <div class="dashboard-grid equal">
+          <article class="panel">
+            <h3>Delivery Lifecycle Funnel</h3>
+            <div class="funnel">
+              <div style="width:100%"><span>Submitted</span><b>2</b></div>
+              <div style="width:86%"><span>Reviewed</span><b>2</b></div>
+              <div style="width:70%"><span>Approved</span><b>1</b></div>
+              <div style="width:54%"><span>Executing</span><b>2</b></div>
+              <div style="width:38%"><span>Completed</span><b>0</b></div>
+              <div style="width:24%"><span>Benefits realised</span><b>0</b></div>
+            </div>
+          </article>
+          <article class="panel">
+            <h3>Risk Heat Map</h3>
+            <div class="heatmap">
+              <div class="heat-cell low">Low</div><div class="heat-cell low">Low</div><div class="heat-cell medium">Medium</div><div class="heat-cell high">High</div>
+              <div class="heat-cell low">Low</div><div class="heat-cell medium">Medium</div><div class="heat-cell high">High</div><div class="heat-cell critical">Extreme</div>
+              <div class="heat-cell medium">Medium</div><div class="heat-cell high">High</div><div class="heat-cell critical">Extreme</div><div class="heat-cell critical">Extreme</div>
+              <div class="heat-cell high">High</div><div class="heat-cell critical">Extreme</div><div class="heat-cell critical">Extreme</div><div class="heat-cell critical">Extreme</div>
+              <button class="risk-dot r1">K</button><button class="risk-dot r2">M</button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="governance" class="page-section">
+        <div class="section-title-row">
+          <div><p class="eyebrow">GOVERNANCE</p><h2>Decision bottlenecks and assurance readiness</h2></div>
+        </div>
+        <div class="dashboard-grid equal">
+          <article class="panel">
+            <h3>Decision Pipeline</h3>
+            <div class="horizontal-bars">
+              <div><label>Management</label><span style="--w:100%">2</span></div>
+              <div><label>Finance</label><span style="--w:50%">1</span></div>
+              <div><label>Evidence</label><span style="--w:50%">1</span></div>
+              <div><label>CBA Review</label><span style="--w:50%">1</span></div>
+              <div><label>HOME31 Fit</label><span style="--w:50%">1</span></div>
+            </div>
+          </article>
+          <article class="panel">
+            <h3>Functional Assurance</h3>
+            <div class="assurance-grid">
+              <div><span>HR & Change</span><strong>100%</strong></div>
+              <div><span>ICT & Architecture</span><strong>100%</strong></div>
+              <div><span>Finance</span><strong>50%</strong></div>
+              <div><span>Evidence</span><strong>50%</strong></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="register" class="page-section">
+        <div class="section-title-row">
+          <div><p class="eyebrow">DELIVERY REGISTER</p><h2>Complete portfolio records</h2></div>
+          <input id="searchBox" class="search-box" placeholder="Search initiative..." />
+        </div>
+        <div class="table-wrap">
+          <table id="deliveryTable">
+            <thead><tr>
+              <th>Year</th><th>Initiative</th><th>Department</th><th>Pillar</th><th>Status</th><th>Health</th><th>Progress</th><th>Readiness</th><th>Budget</th><th>CBA</th><th>Action</th>
+            </tr></thead>
+            <tbody>
+              <tr data-dept="CPS" data-risk="LOW">
+                <td>AMP 2027</td><td><strong>Project Kambing</strong><small>AMP27-CPS-031925</small></td><td>CPS</td><td>Financial Sustainability</td><td>DRAFT</td><td><span class="status-pill watch">WATCH</span></td><td>25%</td><td>50%</td><td>RM 800K</td><td>1.11</td><td><button class="text-btn">View</button></td>
+              </tr>
+              <tr data-dept="APSH" data-risk="LOW">
+                <td>AMP 2027</td><td><strong>Project Makan</strong><small>AMP27-APSH-216712</small></td><td>APSH</td><td>Customer Experience</td><td>APPROVED</td><td><span class="status-pill watch">WATCH</span></td><td>60%</td><td>50%</td><td>RM 600K</td><td>1.16</td><td><button class="text-btn">View</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
   </div>
 
-  <div id="modal-layer" class="modal-layer hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-    <div class="modal-card">
-      <div class="modal-header"><div><span id="modal-eyebrow" class="eyebrow">HOME31</span><h2 id="modal-title">Dialog</h2></div><button id="modal-close" class="icon-button" aria-label="Close">✕</button></div>
-      <div id="modal-content" class="modal-content"></div>
-    </div>
-  </div>
+  <dialog id="actionDialog">
+    <form method="dialog" class="dialog-card">
+      <div class="section-heading"><h2>Create Management Action</h2><button class="icon-btn">✕</button></div>
+      <label>Action title<input placeholder="e.g. Confirm Finance review" /></label>
+      <label>Owner<input placeholder="Owner name" /></label>
+      <label>Due date<input type="date" /></label>
+      <label>Priority<select><option>High</option><option>Medium</option><option>Low</option></select></label>
+      <button class="btn btn-primary">Save action</button>
+    </form>
+  </dialog>
 
-  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-  <input id="csv-file" class="hidden" type="file" accept=".csv,text/csv">
-
-  <script src="config.js"></script>
-  <script src="assets/js/data.js?v=7.1"></script>
-  <script src="assets/js/api.js?v=7.2-admin"></script>
-  <script src="assets/js/app.js?v=7.2-admin.1"></script>
+  <script src="app.js"></script>
 </body>
 </html>
