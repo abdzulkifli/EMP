@@ -47,6 +47,21 @@
     return body;
   }
 
+  async function optionalRequest(path, options){
+    try { return await request(path, options); }
+    catch(error){
+      console.warn('Optional HOME31 data source unavailable:', path, error.message);
+      return [];
+    }
+  }
+
+  function extractCycleId(result){
+    var value = Array.isArray(result) ? result[0] : result;
+    if(!value) return null;
+    if(typeof value === 'string' && /^[0-9a-f-]{36}$/i.test(value)) return value;
+    return value.cycle_id || value.cycleId || value.initiative_cycle_id || null;
+  }
+
   async function signIn(email,password){
     if(!isLive()){
       var db = getDemoDb();
@@ -135,16 +150,34 @@
       request('/rest/v1/project_overview_view?select=*&order=reporting_year.desc,project_code'),
       request('/rest/v1/portfolios?select=id,code,name,status&status=eq.ACTIVE&order=name'),
       request('/rest/v1/strategic_pillars?select=id,code,name,status&status=eq.ACTIVE&order=name'),
-      request('/rest/v1/user_directory_view?select=*&order=full_name')
+      request('/rest/v1/user_directory_view?select=*&order=full_name'),
+      optionalRequest('/rest/v1/initiative_form_submissions?select=initiative_cycle_id,form_version,form_data,updated_at')
     ]);
-    var initiatives = results[2].map(function(i){return {
-      id:i.initiative_id,cycleId:i.cycle_id,code:i.initiative_code,title:i.initiative_title,description:i.description||'',portfolioId:i.portfolio_id,portfolioName:i.portfolio_name,departmentId:i.department_id,departmentName:i.department_name,ownerId:i.project_owner_id,owner:i.project_owner_name,strategicPillarId:i.strategic_pillar_id,strategicPillarName:i.strategic_pillar_name,reportingYearId:i.reporting_year_id,year:i.reporting_year,classification:i.initiative_type,status:i.cycle_status,startDate:i.planned_start_date,targetDate:i.planned_end_date,progress:Number(i.progress_percentage||0),requestedBudget:Number(i.requested_budget||0),approvedBudget:Number(i.approved_budget||0),committedBudget:Number(i.committed_amount||0),utilisedBudget:Number(i.utilised_amount||0),forecastBudget:Number(i.forecast_amount||0),archived:false
-    };});
+    var formMap = {};
+    (results[7] || []).forEach(function(row){ formMap[row.initiative_cycle_id] = row.form_data || {}; });
+    var initiatives = results[2].map(function(i){
+      var formData = formMap[i.cycle_id] || {};
+      return {
+        id:i.initiative_id,cycleId:i.cycle_id,code:i.initiative_code,title:i.initiative_title,
+        description:formData.projectDescription || i.description || '',portfolioId:i.portfolio_id,portfolioName:i.portfolio_name,
+        departmentId:i.department_id,departmentName:i.department_name,ownerId:i.project_owner_id,
+        owner:formData.projectOwnerName || i.project_owner_name,strategicPillarId:i.strategic_pillar_id,
+        strategicPillarName:i.strategic_pillar_name,reportingYearId:i.reporting_year_id,year:i.reporting_year,
+        classification:i.initiative_type,status:i.cycle_status,startDate:i.planned_start_date,targetDate:i.planned_end_date,
+        progress:Number(i.progress_percentage||0),priority:i.priority || 'MEDIUM',requestedBudget:Number(i.requested_budget||0),
+        approvedBudget:Number(i.approved_budget||0),committedBudget:Number(i.committed_amount||0),utilisedBudget:Number(i.utilised_amount||0),
+        forecastBudget:Number(i.forecast_amount||0),archived:false,formData:formData
+      };
+    });
     var projects = results[3].map(function(p){return {
-      id:p.project_id,code:p.project_code,title:p.project_name,initiativeId:p.initiative_id,initiativeTitle:p.initiative_title,departmentId:p.department_id,departmentName:p.department_name,year:p.reporting_year,status:p.project_status,health:p.project_status==='DELAYED'?'DELAYED':(p.project_status==='AT_RISK'?'AT_RISK':'ON_TRACK'),ownerId:p.project_manager_id,owner:p.project_manager_name||'Unassigned',startDate:p.planned_start_date,targetDate:p.planned_end_date,progress:Number(p.progress_percentage||0),budget:0,spent:0,description:'',milestoneCount:p.milestone_count,openRisks:p.open_risks
+      id:p.project_id,code:p.project_code,title:p.project_name,initiativeId:p.initiative_id,initiativeTitle:p.initiative_title,
+      departmentId:p.department_id,departmentName:p.department_name,year:p.reporting_year,status:p.project_status,
+      health:p.project_status==='DELAYED'?'DELAYED':(p.project_status==='AT_RISK'?'AT_RISK':'ON_TRACK'),
+      ownerId:p.project_manager_id,owner:p.project_manager_name||'Unassigned',startDate:p.planned_start_date,targetDate:p.planned_end_date,
+      progress:Number(p.progress_percentage||0),budget:0,spent:0,description:'',milestoneCount:p.milestone_count,openRisks:p.open_risks
     };});
     return {
-      version:1,
+      version:2,
       departments:results[0].map(function(d){return{id:d.id,code:d.code,name:d.name,active:d.status==='ACTIVE'};}),
       reportingYears:results[1].map(function(y){return{id:y.id,year:y.year,label:y.display_name,active:y.is_active};}),
       initiatives:initiatives,projects:projects,milestones:[],risks:[],
@@ -158,7 +191,13 @@
       var db = getDemoDb();
       var existing = record.id && db.initiatives.find(function(i){return i.id===record.id;});
       if(existing) Object.assign(existing,record);
-      else { record.id=uid('init'); record.code=record.code || ('AMP'+String(record.year).slice(-2)+'-'+(db.departments.find(function(d){return d.id===record.departmentId;})||{code:'GEN'}).code+'-'+String(db.initiatives.length+1).padStart(3,'0')); record.archived=false; db.initiatives.push(record); }
+      else {
+        record.id=uid('init');
+        record.cycleId=uid('cycle');
+        record.code=record.code || ('AMP'+String(record.year).slice(-2)+'-'+(db.departments.find(function(d){return d.id===record.departmentId;})||{code:'GEN'}).code+'-'+String(db.initiatives.length+1).padStart(3,'0'));
+        record.archived=false;
+        db.initiatives.push(record);
+      }
       demoAudit(db,user,existing?'UPDATE':'CREATE','Initiative',(existing?'Updated ':'Created ')+record.title+'.');
       saveDemoDb(db); return clone(record);
     }
@@ -167,9 +206,26 @@
       p_portfolio_id:record.portfolioId || context.defaultPortfolioId,p_department_id:record.departmentId,p_project_owner_id:record.ownerId || user.id,
       p_strategic_pillar_id:record.strategicPillarId || context.defaultStrategicPillarId,p_reporting_year_id:record.reportingYearId,
       p_initiative_type:record.classification,p_cycle_status:record.status,p_planned_start_date:record.startDate||null,p_planned_end_date:record.targetDate||null,
-      p_progress_percentage:Number(record.progress||0),p_requested_budget:Number(record.requestedBudget||0),p_approved_budget:Number(record.approvedBudget||0),p_forecast_amount:Number(record.forecastBudget||record.approvedBudget||0)
+      p_progress_percentage:Number(record.progress||0),p_requested_budget:Number(record.requestedBudget||0),p_approved_budget:Number(record.approvedBudget||0),
+      p_forecast_amount:Number(record.forecastBudget||record.approvedBudget||0)
     };
-    return request('/rest/v1/rpc/save_initiative_cycle',{method:'POST',body:JSON.stringify(payload)});
+    var coreResult = await request('/rest/v1/rpc/save_initiative_cycle',{method:'POST',body:JSON.stringify(payload)});
+    var cycleId = record.cycleId || extractCycleId(coreResult);
+    if(!cycleId && record.code && record.reportingYearId){
+      var rows = await request('/rest/v1/initiative_portfolio_view?select=cycle_id&initiative_code=eq.'+encodeURIComponent(record.code)+'&reporting_year_id=eq.'+encodeURIComponent(record.reportingYearId)+'&limit=1');
+      cycleId = rows && rows[0] && rows[0].cycle_id;
+    }
+    if(!cycleId) throw new Error('The initiative was saved, but HOME31 could not resolve its annual cycle for the comprehensive form payload. Refresh and edit the record again.');
+    if(record.formData){
+      var formPayload={initiative_cycle_id:cycleId,form_version:'V7.9.4.9',form_data:record.formData,updated_by:user.id};
+      if(!record.cycleId) formPayload.submitted_by=user.id;
+      await request('/rest/v1/initiative_form_submissions?on_conflict=initiative_cycle_id',{
+        method:'POST',
+        headers:{Prefer:'resolution=merge-duplicates,return=representation'},
+        body:JSON.stringify(formPayload)
+      });
+    }
+    return {core:coreResult,cycleId:cycleId};
   }
 
   async function archiveInitiative(id,user,cycleId){
@@ -217,7 +273,7 @@
       if(existing) Object.assign(existing,record); else {record.id=uid('dept');record.active=true;db.departments.push(record);} demoAudit(db,user,existing?'UPDATE':'CREATE','Department',record.name); saveDemoDb(db); return clone(record);
     }
     var path='/rest/v1/departments'+(record.id?('?id=eq.'+encodeURIComponent(record.id)):'');
-    return request(path,{method:record.id?'PATCH':'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({code:record.code,name:record.name,is_active:record.active!==false})});
+    return request(path,{method:record.id?'PATCH':'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({code:record.code,name:record.name,status:record.active!==false?'ACTIVE':'INACTIVE'})});
   }
 
   async function saveYear(record,user){
@@ -227,7 +283,7 @@
       if(existing) Object.assign(existing,record); else {record.id=uid('year');db.reportingYears.push(record);} demoAudit(db,user,existing?'UPDATE':'CREATE','Reporting Year',record.label); saveDemoDb(db); return clone(record);
     }
     var path='/rest/v1/reporting_years'+(record.id?('?id=eq.'+encodeURIComponent(record.id)):'');
-    return request(path,{method:record.id?'PATCH':'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({year:Number(record.year),label:record.label,is_active:record.active===true})});
+    return request(path,{method:record.id?'PATCH':'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({year:Number(record.year),display_name:record.label,is_active:record.active===true})});
   }
 
   function resetDemo(){ storageRemove(STORAGE_KEY); storageRemove(SESSION_KEY); return getDemoDb(); }
