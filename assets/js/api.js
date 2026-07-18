@@ -129,12 +129,12 @@
   async function loadData(user){
     if(!isLive()) return applyDemoScope(getDemoDb(),user);
     var results = await Promise.all([
-      request('/rest/v1/departments?select=id,code,name,is_active&order=name'),
-      request('/rest/v1/reporting_years?select=id,year,label,is_active&order=year'),
+      request('/rest/v1/departments?select=id,code,name,status&status=eq.ACTIVE&order=name'),
+      request('/rest/v1/reporting_years?select=id,year,display_name,is_active&order=year'),
       request('/rest/v1/initiative_portfolio_view?select=*&order=reporting_year.desc,initiative_code'),
       request('/rest/v1/project_overview_view?select=*&order=reporting_year.desc,project_code'),
-      request('/rest/v1/portfolios?select=id,code,name&is_active=eq.true&order=name'),
-      request('/rest/v1/strategic_pillars?select=id,code,name&is_active=eq.true&order=sort_order'),
+      request('/rest/v1/portfolios?select=id,code,name,status&status=eq.ACTIVE&order=name'),
+      request('/rest/v1/strategic_pillars?select=id,code,name,status&status=eq.ACTIVE&order=name'),
       request('/rest/v1/user_directory_view?select=*&order=full_name')
     ]);
     var initiatives = results[2].map(function(i){return {
@@ -145,8 +145,8 @@
     };});
     return {
       version:1,
-      departments:results[0].map(function(d){return{id:d.id,code:d.code,name:d.name,active:d.is_active};}),
-      reportingYears:results[1].map(function(y){return{id:y.id,year:y.year,label:y.label,active:y.is_active};}),
+      departments:results[0].map(function(d){return{id:d.id,code:d.code,name:d.name,active:d.status==='ACTIVE'};}),
+      reportingYears:results[1].map(function(y){return{id:y.id,year:y.year,label:y.display_name,active:y.is_active};}),
       initiatives:initiatives,projects:projects,milestones:[],risks:[],
       users:results[6].map(function(u){return{id:u.id,name:u.full_name,email:u.email,role:(u.roles&&u.roles[0])||'END_USER',departmentId:u.home_department_id,status:u.account_status,mustChangePassword:u.must_change_password,lastLogin:u.last_sign_in_at};}),
       portfolios:results[4],strategicPillars:results[5],audit:[]
