@@ -4,9 +4,9 @@
   Change mode to "supabase" after completing the Supabase setup guide.
 */
 window.HOME31_CONFIG = {
-  mode: "demo",
-  supabaseUrl: "",
-  publishableKey: "",
+  mode: "supabase",
+  supabaseUrl: "https://yqovxrqszwmtlleecmsr.supabase.co",
+  publishableKey: "sb_publishable_taAFSPVpXIqaxqdFs-b_zQ_y-ba2pp1",
   currency: "MYR",
   locale: "en-MY",
   organisationName: "HOME31"
