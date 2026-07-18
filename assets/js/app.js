@@ -63,8 +63,7 @@
     el.userName.textContent=user.name;el.userRole.textContent=user.roleLabel;el.userAvatar.textContent=initials(user.name);
     state.data=await loadWithSpinner();
     if(!state.data)return;
-    const active=state.data.reportingYears.find(y=>y.active)||state.data.reportingYears.slice().sort((a,b)=>b.year-a.year)[0];
-    state.filters.year=active ? active.year : new Date().getFullYear();
+    state.filters.year=resolveInitialPortfolioYear(state.data);
     state.compareTo=state.filters.year;state.compareFrom=state.filters.year-1;
     renderNav();
     const hashRoute=location.hash.replace('#/','');state.route=allowedRoute(hashRoute||'dashboard')?hashRoute||'dashboard':'dashboard';
@@ -102,6 +101,18 @@
   function departmentOptions(selected,includeAll){return `${includeAll?'<option value="all">All departments</option>':''}${state.data.departments.filter(d=>d.active!==false).map(d=>`<option value="${d.id}" ${selected===d.id?'selected':''}>${escapeHtml(d.name)}</option>`).join('')}`;}
   function statusBadge(value){const map={APPROVED:'green',COMPLETED:'green',ACTIVE:'green',ON_TRACK:'green',UPCOMING:'blue',IN_PROGRESS:'blue',SUBMITTED:'blue',UNDER_REVIEW:'amber',IN_REVIEW:'amber',AT_RISK:'amber',FROZEN:'amber',DELAYED:'red',REVOKED:'red',REJECTED:'red',ARCHIVED:'gray',DRAFT:'gray',RETURNED:'amber',NEW:'teal',CARRY_FORWARD:'blue',EVOLUTION:'green',REPEAT:'amber',CRITICAL:'red',HIGH:'amber',MEDIUM:'blue',LOW:'green'};return `<span class="badge ${map[value]||'gray'}">${escapeHtml(pretty(value))}</span>`;}
   function renderGlobalFilters(){return `<div class="toolbar-group"><select data-filter="year">${yearOptions(state.filters.year)}</select><select data-filter="department">${departmentOptions(state.filters.department,true)}</select></div>`;}
+
+  function resolveInitialPortfolioYear(data){
+    const initiativeYears=(data.initiatives||[]).filter(i=>!i.archived&&Number.isFinite(Number(i.year))).map(i=>Number(i.year));
+    const active=data.reportingYears.find(y=>y.active);
+    if(active&&initiativeYears.includes(Number(active.year)))return Number(active.year);
+    if(initiativeYears.length)return Math.max(...initiativeYears);
+    const latest=data.reportingYears.slice().sort((a,b)=>Number(b.year)-Number(a.year))[0];
+    return latest?Number(latest.year):new Date().getFullYear();
+  }
+  function availableDeliveryYears(){
+    return [...new Set([...(state.data.initiatives||[]).filter(i=>!i.archived).map(i=>Number(i.year)),...(state.data.projects||[]).map(p=>Number(p.year))].filter(Number.isFinite))].sort((a,b)=>b-a);
+  }
 
   function scopedInitiatives(){return state.data.initiatives.filter(i=>!i.archived && Number(i.year)===Number(state.filters.year) && (state.filters.department==='all'||i.departmentId===state.filters.department));}
   function scopedProjects(){return state.data.projects.filter(p=>Number(p.year)===Number(state.filters.year)&&(state.filters.department==='all'||p.departmentId===state.filters.department));}
@@ -171,9 +182,11 @@
   function renderProjects(){
     const canEdit=!['AUDITOR'].includes(state.user.role);let items=scopedDeliveryItems();const q=state.filters.search.toLowerCase();if(q)items=items.filter(p=>[p.code,p.title,p.owner,p.initiativeTitle,p.nextAction].join(' ').toLowerCase().includes(q));if(state.filters.status!=='all')items=items.filter(p=>p.health===state.filters.status||p.status===state.filters.status);
     const initiativeCount=items.filter(p=>p.sourceType==='INITIATIVE').length, projectCount=items.filter(p=>p.sourceType==='PROJECT').length;
+    const years=availableDeliveryYears(),otherYears=years.filter(y=>Number(y)!==Number(state.filters.year));
+    const yearHelp=!items.length&&otherYears.length?`<div class="delivery-year-help"><div><strong>No delivery records are stored for AMP ${state.filters.year}.</strong><span>Choose a year containing saved initiatives:</span></div><div class="delivery-year-actions">${otherYears.map(y=>`<button class="action-button" data-action="project-year-shortcut" data-year="${y}">AMP ${y}</button>`).join('')}</div></div>`:'';
     return pageHeader('Delivery execution','Project Management','Every HOME31 initiative is reflected automatically as a delivery record, together with any linked project records.',`${canEdit?'<button class="btn primary compact" data-action="new-project">＋ Create Linked Project</button>':''}`)+
       `<div class="toolbar"><div class="toolbar-group"><input data-filter="search" placeholder="Search delivery record, owner or next action" value="${escapeAttr(state.filters.search)}"><select data-filter="year">${yearOptions(state.filters.year)}</select><select data-filter="department">${departmentOptions(state.filters.department,true)}</select><select data-filter="status"><option value="all">All health states</option><option value="ON_TRACK" ${state.filters.status==='ON_TRACK'?'selected':''}>On Track</option><option value="AT_RISK" ${state.filters.status==='AT_RISK'?'selected':''}>At Risk</option><option value="DELAYED" ${state.filters.status==='DELAYED'?'selected':''}>Delayed</option><option value="COMPLETED" ${state.filters.status==='COMPLETED'?'selected':''}>Completed</option></select></div><div class="tabs"><button data-action="project-view" data-view="list" class="${state.projectView==='list'?'active':''}">List</button><button data-action="project-view" data-view="timeline" class="${state.projectView==='timeline'?'active':''}">Timeline</button></div></div>`+
-      `<div class="delivery-scope-note"><strong>${initiativeCount} initiative delivery records</strong><span>${projectCount} linked project records · dates, progress, readiness, risk and next action are read from the saved HOME31 record.</span></div>`+
+      `<div class="delivery-scope-note"><strong>${initiativeCount} initiative delivery records</strong><span>${projectCount} linked project records · dates, progress, readiness, risk and next action are read from the saved HOME31 record.</span></div>`+yearHelp+
       (state.projectView==='timeline'?renderTimeline(items):renderProjectTable(items,canEdit));
   }
   function renderProjectTable(items,canEdit){return `<section class="card table-card"><div class="table-header"><strong>Project control register</strong><span class="muted">${items.length} delivery records</span></div><div class="table-wrap"><table><thead><tr><th>Delivery record</th><th>Type</th><th>Parent initiative</th><th>Owner</th><th>Start</th><th>Target</th><th>Progress</th><th>Readiness</th><th>Risk / Health</th><th>Next action</th><th>Actions</th></tr></thead><tbody>${items.length?items.map(p=>{const initiativeRecord=p.sourceType==='INITIATIVE';const viewAction=initiativeRecord?'view-initiative':'view-project',editAction=initiativeRecord?'edit-initiative':'edit-project',actionId=initiativeRecord?p.initiativeId:p.id;return `<tr><td><strong>${escapeHtml(p.title)}</strong><br><span class="muted">${escapeHtml(p.code||'Pending code')}</span></td><td>${statusBadge(p.sourceType)}</td><td>${initiativeRecord?'<span class="muted">Enterprise initiative</span>':escapeHtml(p.initiativeTitle||initiativeTitle(p.initiativeId))}</td><td>${escapeHtml(p.owner||'Unassigned')}</td><td>${formatDate(p.startDate)}</td><td>${formatDate(p.targetDate)}</td><td><div class="progress-cell"><div class="bar-track"><div class="bar-fill" style="width:${Number(p.progress||0)}%"></div></div>${Number(p.progress||0)}%</div></td><td>${Number(p.readiness||0)}%</td><td>${p.risk?`${statusBadge(String(p.risk).toUpperCase()==='EXTREME'?'CRITICAL':String(p.risk).toUpperCase())} `:''}${statusBadge(p.health)}</td><td><span class="next-action-cell">${escapeHtml(p.nextAction||'Not recorded')}</span></td><td><div class="row-actions"><button class="action-button" data-action="${viewAction}" data-id="${actionId}">View</button>${canEdit?`<button class="action-button" data-action="${editAction}" data-id="${actionId}">Edit</button>`:''}</div></td></tr>`;}).join(''):'<tr><td colspan="11"><div class="empty-state"><strong>No delivery records found</strong>Create an initiative or adjust the selected year and department.</div></td></tr>'}</tbody></table></div></section>`;}
@@ -217,6 +230,7 @@
       else if(action==='edit-project')openProjectModal(state.data.projects.find(p=>p.id===id));
       else if(action==='view-project')openProjectView(state.data.projects.find(p=>p.id===id));
       else if(action==='project-view'){state.projectView=button.dataset.view;render();}
+      else if(action==='project-year-shortcut'){state.filters.year=Number(button.dataset.year);state.filters.search='';state.filters.status='all';render();}
       else if(action==='new-user')openUserModal();
       else if(action==='manage-user')openManageUser(state.data.users.find(u=>u.id===id));
       else if(action==='new-department')openDepartmentModal();
@@ -391,7 +405,11 @@
       const year=Number(f.year),yearRecord=state.data.reportingYears.find(y=>Number(y.year)===year),dept=state.data.departments.find(x=>x.id===f.departmentId),code=item.code||f.initiativeCode||('AMP'+String(year).slice(-2)+'-'+(dept?.code||'GEN')+'-'+Date.now().toString().slice(-6));
       const record=Object.assign({},item,{code,title:f.initiativeName.trim(),description:f.projectDescription.trim(),owner:f.projectOwnerName.trim(),ownerId:f.createdById||state.user.id,departmentId:f.departmentId,year,reportingYearId:yearRecord?.id,classification:coreCategory(f.category),status:coreStatus(f.deliveryStatus),requestedBudget:Number(f.initialEstimatedCost||0),approvedBudget:Number(f.approvedBudget||0),committedBudget:Number(item.committedBudget||0),utilisedBudget:Number(item.utilisedBudget||0),forecastBudget:Number(f.proposedBudget??f.postChallengeEstimatedCost??f.approvedBudget??0),startDate:f.startDate,targetDate:f.targetDate,progress:Number(f.progress||0),priority:coreRisk(f.overallRiskLevel),strategicPillarId:f.strategicPillarId,formData:f});
       await withSubmit(form,()=>api.saveInitiative(record,state.user,{defaultPortfolioId:state.data.portfolios?.[0]?.id,defaultStrategicPillarId:state.data.strategicPillars?.[0]?.id}));
-      localStorage.removeItem(key);form.dataset.dirty='false';closeModal(true);await refreshData();toast('Comprehensive initiative saved.','success');
+      state.filters.year=year;
+      state.filters.department='all';
+      state.filters.search='';
+      state.filters.status='all';
+      localStorage.removeItem(key);form.dataset.dirty='false';closeModal(true);await refreshData();toast('Comprehensive initiative saved. Project Management is now showing AMP '+year+'.','success');
     });
   }
 
