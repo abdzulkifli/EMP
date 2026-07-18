@@ -20,7 +20,7 @@
 
   async function init(){
     ['login-screen','login-form','login-email','login-password','login-alert','mode-copy','app-shell','main-nav','page-root','user-menu','user-menu-button','user-avatar','user-name','user-role','quick-add','mobile-menu','modal-layer','modal-title','modal-eyebrow','modal-content','modal-close','toast','csv-file','footer-mode'].forEach(id=>el[toCamel(id)]=document.getElementById(id));
-    el.modeCopy.textContent = api.isLive() ? 'Connected to Supabase. Sign in with your HOME31 account.' : 'Demo mode is active. Data is stored only in this browser.';
+    el.modeCopy.textContent = api.isLive() ? 'Welcome Future. Sign in with your HOME31 account.' : 'Demo mode is active. Data is stored only in this browser.';
     el.footerMode.textContent = api.isLive() ? 'Supabase live mode' : 'Demo mode · local browser data';
     bindStaticEvents();
     const current = await api.getCurrentUser();
