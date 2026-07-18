@@ -267,7 +267,12 @@
       departments:results[0].map(function(d){return{id:d.id,code:d.code,name:d.name,active:d.status==='ACTIVE'};}),
       reportingYears:results[1].map(function(y){return{id:y.id,year:y.year,label:y.display_name,active:y.is_active};}),
       initiatives:initiatives,projects:projects,milestones:[],risks:[],
-      users:results[6].map(function(u){return{id:u.id,name:u.full_name,email:u.email,role:(u.roles&&u.roles[0])||'END_USER',departmentId:u.home_department_id,status:u.account_status,mustChangePassword:u.must_change_password,lastLogin:u.last_sign_in_at};}),
+      users:results[6].map(function(u){
+        var roles=Array.isArray(u.roles)?u.roles:(u.roles?[u.roles]:[]),directoryRole=roles[0]||'END_USER';
+        var mapped={id:u.id,name:u.full_name,email:u.email,role:directoryRole,departmentId:u.home_department_id,status:u.account_status,mustChangePassword:u.must_change_password,lastLogin:u.last_sign_in_at};
+        if(user&&mapped.id===user.id){mapped.role=user.role||mapped.role;mapped.departmentId=user.departmentId||mapped.departmentId;mapped.name=user.name||mapped.name;mapped.status=user.status||mapped.status;}
+        return mapped;
+      }),
       portfolios:results[4],strategicPillars:results[5],audit:[],
       continuityLinks:(results[9].data||[]).map(function(row){return{id:row.id,previousCycleId:row.previous_cycle_id,currentCycleId:row.current_cycle_id,continuityType:row.continuity_type,matchConfidence:row.match_confidence===null?null:Number(row.match_confidence),matchMethod:row.match_method,approvedBudgetMovement:row.approved_budget_movement===null?null:Number(row.approved_budget_movement),cbaRatioMovement:row.cba_ratio_movement===null?null:Number(row.cba_ratio_movement),scopeChangeExplanation:row.scope_change_explanation,managementStatus:row.management_status,confirmedBy:row.confirmed_by,confirmedAt:row.confirmed_at,updatedAt:row.updated_at};}),
       decisionReadinessModels:(results[10].data||[]).map(function(row){return{id:row.id,code:row.code,name:row.name,description:row.description,status:row.status,effectiveFrom:row.effective_from,effectiveTo:row.effective_to,isDefault:row.is_default};}),
