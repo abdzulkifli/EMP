@@ -35,6 +35,12 @@
     document.addEventListener('click',event=>{ if(!el.userMenu.contains(event.target) && !el.userMenuButton.contains(event.target)) el.userMenu.classList.add('hidden'); });
     document.getElementById('logout-action').addEventListener('click',logout);
     document.getElementById('change-password-action').addEventListener('click',()=>openPasswordModal(false));
+    el.userMenu.addEventListener('click',event=>{
+      const button=event.target.closest('[data-route]');
+      if(!button)return;
+      el.userMenu.classList.add('hidden');
+      navigate(button.dataset.route);
+    });
     el.quickAdd.addEventListener('click',quickAdd);
     el.mobileMenu.addEventListener('click',()=>el.mainNav.classList.toggle('open'));
     el.modalClose.addEventListener('click',closeModal);
@@ -45,7 +51,13 @@
     el.pageRoot.addEventListener('change',handlePageChange);
     el.pageRoot.addEventListener('input',handlePageInput);
     el.csvFile.addEventListener('change',handleCsvImport);
-    window.addEventListener('hashchange',()=>{ const route=location.hash.replace('#/',''); if(route && route!==state.route){state.route=route;render();} });
+    window.addEventListener('hashchange',()=>{
+      const route=location.hash.replace('#/','');
+      if(!route||route===state.route)return;
+      if(!allowedRoute(route)){location.hash='#/dashboard';return;}
+      state.route=route;
+      render();
+    });
   }
 
   async function handleLogin(event){
@@ -82,7 +94,11 @@
     }
   }
   async function refreshData(){ state.data=await api.loadData(state.user);render(); }
-  function allowedRoute(route){ const item=navItems.find(n=>n.id===route);return !!item && (item.roles==='all'||item.roles.includes(state.user.role)); }
+  function allowedRoute(route){
+    if(route==='profile')return !!state.user;
+    const item=navItems.find(n=>n.id===route);
+    return !!item && (item.roles==='all'||item.roles.includes(state.user.role));
+  }
   function renderNav(){
     el.mainNav.innerHTML=navItems.filter(n=>n.roles==='all'||n.roles.includes(state.user.role)).map(n=>`<button data-route="${n.id}" class="${n.id===state.route?'active':''}">${n.label}</button>`).join('');
   }
@@ -94,7 +110,7 @@
     renderNav();
     const renderers={dashboard:renderDashboard,portfolio:renderPortfolio,initiatives:renderInitiatives,governance:renderGovernance,projects:renderProjects,comparison:renderComparison,reports:renderReports,admin:renderAdmin,profile:renderProfile};
     el.pageRoot.innerHTML=(renderers[state.route]||renderDashboard)();
-    document.title='HOME31 · '+(navItems.find(n=>n.id===state.route)?.label||'Dashboard');
+    document.title='HOME31 · '+(state.route==='profile'?'My Profile':(navItems.find(n=>n.id===state.route)?.label||'Dashboard'));
   }
 
   function pageHeader(eyebrow,title,description,actions){ return `<div class="page-header"><div class="page-title"><span class="eyebrow">${escapeHtml(eyebrow)}</span><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p></div><div class="header-actions">${actions||''}</div></div>`; }
