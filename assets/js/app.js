@@ -4,7 +4,7 @@
   const config = api.config;
   const el = {};
   const state = {
-    user:null,data:null,route:'dashboard',filters:{year:null,department:'all',search:'',status:'all'},projectView:'list',adminTab:'users',compareFrom:2026,compareTo:2027
+    user:null,data:null,route:'dashboard',dashboardYear:'all',filters:{year:null,department:'all',search:'',status:'all'},projectView:'list',adminTab:'users',compareFrom:2026,compareTo:2027
   };
   const navItems = [
     {id:'dashboard',label:'Dashboard',roles:'all'},
@@ -64,6 +64,7 @@
     state.data=await loadWithSpinner();
     if(!state.data)return;
     state.filters.year=resolveInitialPortfolioYear(state.data);
+    state.dashboardYear='all';
     state.compareTo=state.filters.year;state.compareFrom=state.filters.year-1;
     renderNav();
     const hashRoute=location.hash.replace('#/','');state.route=allowedRoute(hashRoute||'dashboard')?hashRoute||'dashboard':'dashboard';
@@ -105,7 +106,9 @@
   function departmentOptions(selected,includeAll){return `${includeAll?'<option value="all">All departments</option>':''}${state.data.departments.filter(d=>d.active!==false).map(d=>`<option value="${d.id}" ${selected===d.id?'selected':''}>${escapeHtml(d.name)}</option>`).join('')}`;}
   function statusBadge(value){const map={APPROVED:'green',COMPLETED:'green',ACTIVE:'green',ON_TRACK:'green',UPCOMING:'blue',IN_PROGRESS:'blue',SUBMITTED:'blue',UNDER_REVIEW:'amber',IN_REVIEW:'amber',AT_RISK:'amber',FROZEN:'amber',DELAYED:'red',REVOKED:'red',REJECTED:'red',ARCHIVED:'gray',DRAFT:'gray',RETURNED:'amber',NEW:'teal',CARRY_FORWARD:'blue',EVOLUTION:'green',REPEAT:'amber',CRITICAL:'red',HIGH:'amber',MEDIUM:'blue',LOW:'green'};return `<span class="badge ${map[value]||'gray'}">${escapeHtml(pretty(value))}</span>`;}
   function renderGlobalFilters(){return `<div class="toolbar-group"><select data-filter="year">${yearOptions(state.filters.year)}</select><select data-filter="department">${departmentOptions(state.filters.department,true)}</select></div>`;}
-  function renderDashboardFilters(){return `<div class="dashboard-filter-bar"><label class="dashboard-filter-control"><span>Dashboard year</span><select data-filter="year" aria-label="Select dashboard year">${yearOptions(state.filters.year)}</select></label><label class="dashboard-filter-control department"><span>Department</span><select data-filter="department" aria-label="Select department">${departmentOptions(state.filters.department,true)}</select></label><button class="btn outline compact" data-action="print">Print</button></div>`;}
+  function dashboardYearOptions(selected){return `<option value="all" ${selected==='all'?'selected':''}>All years</option>${yearOptions(selected)}`;}
+  function dashboardScopeLabel(){return state.dashboardYear==='all'?'All years':('AMP '+state.dashboardYear);}
+  function renderDashboardFilters(){return `<div class="dashboard-filter-bar"><label class="dashboard-filter-control"><span>Dashboard year</span><select data-dashboard-year aria-label="Select dashboard year">${dashboardYearOptions(state.dashboardYear)}</select></label><label class="dashboard-filter-control department"><span>Department</span><select data-filter="department" aria-label="Select department">${departmentOptions(state.filters.department,true)}</select></label><button class="btn outline compact" data-action="print">Print</button></div>`;}
 
   function resolveInitialPortfolioYear(data){
     const initiativeYears=(data.initiatives||[]).filter(i=>!i.archived&&Number.isFinite(Number(i.year))).map(i=>Number(i.year));
@@ -121,6 +124,8 @@
 
   function scopedInitiatives(){return state.data.initiatives.filter(i=>!i.archived && Number(i.year)===Number(state.filters.year) && (state.filters.department==='all'||i.departmentId===state.filters.department));}
   function scopedProjects(){return state.data.projects.filter(p=>Number(p.year)===Number(state.filters.year)&&(state.filters.department==='all'||p.departmentId===state.filters.department));}
+  function dashboardScopedInitiatives(){return state.data.initiatives.filter(i=>!i.archived && (state.dashboardYear==='all'||Number(i.year)===Number(state.dashboardYear)) && (state.filters.department==='all'||i.departmentId===state.filters.department));}
+  function dashboardScopedProjects(){return state.data.projects.filter(p=>(state.dashboardYear==='all'||Number(p.year)===Number(state.dashboardYear)) && (state.filters.department==='all'||p.departmentId===state.filters.department));}
   function initiativeDeliveryHealth(item){
     const data=item.formData||{}, status=data.deliveryStatus||displayStatus(item.status), risk=data.overallRiskLevel||displayRisk(item.priority);
     if(status==='Completed'||item.status==='COMPLETED')return 'COMPLETED';
@@ -129,8 +134,8 @@
     if(status==='At Risk'||['High','Extreme'].includes(risk))return 'AT_RISK';
     return 'ON_TRACK';
   }
-  function scopedDeliveryItems(){
-    const initiatives=scopedInitiatives().map(i=>{
+  function buildDeliveryItems(sourceInitiatives,sourceProjects){
+    const initiatives=sourceInitiatives.map(i=>{
       const data=i.formData||{};
       return {
         id:i.id,initiativeId:i.id,cycleId:i.cycleId,sourceType:'INITIATIVE',code:i.code,title:i.title,
@@ -140,13 +145,13 @@
         budget:Number(data.approvedBudget??i.approvedBudget??0),spent:Number(i.utilisedBudget||0),description:data.projectDescription||i.description||'',
         nextAction:data.nextAction||'',initiativeTitle:i.title,formData:data
       };
-    });
-    const projects=scopedProjects().map(p=>{
+    });    const projects=sourceProjects.map(p=>{
       const initiative=state.data.initiatives.find(i=>i.id===p.initiativeId), data=initiative?.formData||{};
       return Object.assign({},p,{sourceType:'PROJECT',readiness:Number(data.readiness||0),risk:data.overallRiskLevel||'',nextAction:data.nextAction||'',initiativeTitle:p.initiativeTitle||initiative?.title||initiativeTitle(p.initiativeId)});
-    });
-    return initiatives.concat(projects);
+    });    return initiatives.concat(projects).sort((a,b)=>Number(b.year)-Number(a.year)||String(a.sourceType).localeCompare(String(b.sourceType))||String(a.title).localeCompare(String(b.title)));
   }
+  function scopedDeliveryItems(){return buildDeliveryItems(scopedInitiatives(),scopedProjects());}
+  function dashboardDeliveryItems(){return buildDeliveryItems(dashboardScopedInitiatives(),dashboardScopedProjects());}
   function budgetTotals(items){return items.reduce((a,i)=>{a.requested+=Number(i.requestedBudget||0);a.approved+=Number(i.approvedBudget||0);a.committed+=Number(i.committedBudget||0);a.utilised+=Number(i.utilisedBudget||0);return a;},{requested:0,approved:0,committed:0,utilised:0});}
 
   function dashboardAttentionItems(items,initiatives,projects){
@@ -166,23 +171,26 @@
     return messages;
   }
   function dashboardCommitments(items){
-    return items.filter(i=>i.targetDate).slice().sort((a,b)=>String(a.targetDate).localeCompare(String(b.targetDate))).slice(0,6);
+    const today=new Date();today.setHours(0,0,0,0);
+    return items.filter(i=>i.targetDate&&i.status!=='COMPLETED'&&new Date(String(i.targetDate).length===10?i.targetDate+'T00:00:00':i.targetDate)>=today).slice().sort((a,b)=>String(a.targetDate).localeCompare(String(b.targetDate))).slice(0,6);
   }
   function renderDashboardDeliveryRegister(items){
-    return `<section class="card table-card dashboard-delivery-register"><div class="table-header"><div><strong>Complete delivery register · AMP ${state.filters.year}</strong><span class="dashboard-table-note">Every visible HOME31 initiative and every linked project for the selected year.</span></div><div class="header-actions"><span class="muted">${items.length} records</span><button class="action-button" data-route="projects">Open Project Management</button></div></div><div class="table-wrap"><table class="dashboard-delivery-table"><thead><tr><th>Delivery record</th><th>Type</th><th>Parent initiative</th><th>Owner</th><th>Department</th><th>Status</th><th>Health</th><th>Start</th><th>Target</th><th>Progress</th><th>Readiness</th><th>Risk</th><th>Approved / Project Budget</th><th>Next action</th><th>Action</th></tr></thead><tbody>${items.length?items.map(item=>{const initiativeRecord=item.sourceType==='INITIATIVE';const action=initiativeRecord?'view-initiative':'view-project';const actionId=initiativeRecord?item.initiativeId:item.id;return `<tr><td><strong>${escapeHtml(item.title)}</strong><br><span class="muted">${escapeHtml(item.code||'Pending code')}</span></td><td>${statusBadge(item.sourceType)}</td><td>${initiativeRecord?'<span class="muted">Enterprise initiative</span>':escapeHtml(item.initiativeTitle||initiativeTitle(item.initiativeId))}</td><td>${escapeHtml(item.owner||'Unassigned')}</td><td>${escapeHtml(item.departmentName||departmentName(item.departmentId))}</td><td>${statusBadge(item.status||'DRAFT')}</td><td>${statusBadge(item.health||'ON_TRACK')}</td><td>${formatDate(item.startDate)}</td><td>${formatDate(item.targetDate)}</td><td><div class="progress-cell"><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,Number(item.progress||0))}%"></div></div>${Number(item.progress||0)}%</div></td><td>${Number(item.readiness||0)}%</td><td>${item.risk?statusBadge(String(item.risk).toUpperCase()==='EXTREME'?'CRITICAL':String(item.risk).toUpperCase()):'<span class="muted">Not recorded</span>'}</td><td class="amount">${Number(item.budget||0)>0?money(item.budget):'<span class="muted">Not recorded</span>'}</td><td><span class="next-action-cell">${escapeHtml(item.nextAction||'Not recorded')}</span></td><td><button class="action-button" data-action="${action}" data-id="${actionId}">View</button></td></tr>`;}).join(''):'<tr><td colspan="15"><div class="empty-state"><strong>No delivery records for AMP '+state.filters.year+'</strong>Select another year or create an initiative.</div></td></tr>'}</tbody></table></div></section>`;
+    const scope=dashboardScopeLabel();
+    const emptyLabel=state.dashboardYear==='all'?'No delivery records are available':'No delivery records for AMP '+state.dashboardYear;
+    return `<section class="card table-card dashboard-delivery-register"><div class="table-header"><div><strong>Complete delivery register · ${scope}</strong><span class="dashboard-table-note">Every visible HOME31 initiative and every linked project within the selected dashboard scope.</span></div><div class="header-actions"><span class="muted">${items.length} records</span><button class="action-button" data-route="projects">Open Project Management</button></div></div><div class="table-wrap"><table class="dashboard-delivery-table"><thead><tr><th>Year</th><th>Delivery record</th><th>Type</th><th>Parent initiative</th><th>Owner</th><th>Department</th><th>Status</th><th>Health</th><th>Start</th><th>Target</th><th>Progress</th><th>Readiness</th><th>Risk</th><th>Approved / Project Budget</th><th>Next action</th><th>Action</th></tr></thead><tbody>${items.length?items.map(item=>{const initiativeRecord=item.sourceType==='INITIATIVE';const action=initiativeRecord?'view-initiative':'view-project';const actionId=initiativeRecord?item.initiativeId:item.id;return `<tr><td><strong>AMP ${escapeHtml(item.year)}</strong></td><td><strong>${escapeHtml(item.title)}</strong><br><span class="muted">${escapeHtml(item.code||'Pending code')}</span></td><td>${statusBadge(item.sourceType)}</td><td>${initiativeRecord?'<span class="muted">Enterprise initiative</span>':escapeHtml(item.initiativeTitle||initiativeTitle(item.initiativeId))}</td><td>${escapeHtml(item.owner||'Unassigned')}</td><td>${escapeHtml(item.departmentName||departmentName(item.departmentId))}</td><td>${statusBadge(item.status||'DRAFT')}</td><td>${statusBadge(item.health||'ON_TRACK')}</td><td>${formatDate(item.startDate)}</td><td>${formatDate(item.targetDate)}</td><td><div class="progress-cell"><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,Number(item.progress||0))}%"></div></div>${Number(item.progress||0)}%</div></td><td>${Number(item.readiness||0)}%</td><td>${item.risk?statusBadge(String(item.risk).toUpperCase()==='EXTREME'?'CRITICAL':String(item.risk).toUpperCase()):'<span class="muted">Not recorded</span>'}</td><td class="amount">${Number(item.budget||0)>0?money(item.budget):'<span class="muted">Not recorded</span>'}</td><td><span class="next-action-cell">${escapeHtml(item.nextAction||'Not recorded')}</span></td><td><button class="action-button" data-action="${action}" data-id="${actionId}">View</button></td></tr>`;}).join(''):`<tr><td colspan="16"><div class="empty-state"><strong>${emptyLabel}</strong>Select a year or create an initiative.</div></td></tr>`}</tbody></table></div></section>`;
   }
   function renderDashboard(){
-    const initiatives=scopedInitiatives(),linkedProjects=scopedProjects(),deliveryItems=scopedDeliveryItems(),totals=budgetTotals(initiatives),approved=totals.approved||1;
+    const initiatives=dashboardScopedInitiatives(),linkedProjects=dashboardScopedProjects(),deliveryItems=dashboardDeliveryItems(),totals=budgetTotals(initiatives),approved=totals.approved||1,scope=dashboardScopeLabel();
     const onTrack=deliveryItems.filter(i=>i.health==='ON_TRACK').length,atRisk=deliveryItems.filter(i=>i.health==='AT_RISK').length,delayed=deliveryItems.filter(i=>i.health==='DELAYED').length,completed=deliveryItems.filter(i=>i.health==='COMPLETED'||i.status==='COMPLETED').length;
     const healthPct=deliveryItems.length?Math.round(onTrack/deliveryItems.length*100):0;
     const budgetCoverage=initiatives.length?Math.round(initiatives.filter(i=>Number(i.approvedBudget||0)>0).length/initiatives.length*100):0;
     const attention=dashboardAttentionItems(deliveryItems,initiatives,linkedProjects);
     const commitments=dashboardCommitments(deliveryItems);
-    return pageHeader('Executive control centre','Portfolio Dashboard','All HOME31 initiatives and linked projects are displayed together for the selected reporting year.',renderDashboardFilters())+
-      `<div class="dashboard-scope-banner"><div><span>Selected portfolio year</span><strong>AMP ${state.filters.year}</strong></div><div><span>Initiative delivery records</span><strong>${initiatives.length}</strong></div><div><span>Linked projects</span><strong>${linkedProjects.length}</strong></div><div><span>Total delivery records</span><strong>${deliveryItems.length}</strong></div></div>`+
-      `<div class="grid kpi-grid">${kpi('Approved budget',money(totals.approved),'Official initiative cost basis','◈')}${kpi('Budget coverage',budgetCoverage+'%',initiatives.filter(i=>Number(i.approvedBudget||0)>0).length+' of '+initiatives.length+' initiatives','▣')}${kpi('Delivery records',String(deliveryItems.length),initiatives.length+' initiatives · '+linkedProjects.length+' linked projects','◎')}${kpi('On track',String(onTrack),completed+' completed','◆','positive')}${kpi('At risk',String(atRisk),'Requires active mitigation','⚠','warning')}${kpi('Overdue',String(delayed),'Past target date and incomplete','!','negative')}</div>`+
-      `<div class="grid dashboard-grid"><section class="card panel"><div class="panel-header"><div><h2>Budget position by department</h2><p>Approved initiative budget for AMP ${state.filters.year}; utilisation is retained where recorded.</p></div></div><div class="budget-list">${renderDepartmentBudgetBars(initiatives)}</div></section>
-      <section class="card panel"><div class="panel-header"><div><h2>Combined delivery health</h2><p>Initiatives and linked projects for the selected year</p></div></div><div class="donut-wrap"><div class="donut" style="--value:${healthPct}"><div class="donut-label"><strong>${healthPct}%</strong><small>on track</small></div></div><div class="legend"><div class="legend-row"><span>On Track</span><strong>${onTrack}</strong></div><div class="legend-row"><span>At Risk</span><strong>${atRisk}</strong></div><div class="legend-row"><span>Overdue</span><strong>${delayed}</strong></div><div class="legend-row"><span>Completed</span><strong>${completed}</strong></div></div></div></section></div>`+
+    return pageHeader('Executive control centre','Portfolio Dashboard','All HOME31 initiatives and linked projects are displayed together. The dashboard opens with all years and can be narrowed to one reporting year.',renderDashboardFilters())+
+      `<div class="dashboard-scope-banner"><div><span>Dashboard scope</span><strong>${scope}</strong></div><div><span>Initiative delivery records</span><strong>${initiatives.length}</strong></div><div><span>Linked projects</span><strong>${linkedProjects.length}</strong></div><div><span>Total delivery records</span><strong>${deliveryItems.length}</strong></div></div>`+
+      `<div class="grid kpi-grid">${kpi('Approved budget',money(totals.approved),state.dashboardYear==='all'?'Sum of approved annual initiative budgets':'Official initiative cost basis','◈')}${kpi('Budget coverage',budgetCoverage+'%',initiatives.filter(i=>Number(i.approvedBudget||0)>0).length+' of '+initiatives.length+' initiatives','▣')}${kpi('Delivery records',String(deliveryItems.length),initiatives.length+' initiatives · '+linkedProjects.length+' linked projects','◎')}${kpi('On track',String(onTrack),completed+' completed','◆','positive')}${kpi('At risk',String(atRisk),'Requires active mitigation','⚠','warning')}${kpi('Overdue',String(delayed),'Past target date and incomplete','!','negative')}</div>`+
+      `<div class="grid dashboard-grid"><section class="card panel"><div class="panel-header"><div><h2>Budget position by department</h2><p>Approved initiative budget for ${scope}; utilisation is retained where recorded.</p></div></div><div class="budget-list">${renderDepartmentBudgetBars(initiatives)}</div></section>
+      <section class="card panel"><div class="panel-header"><div><h2>Combined delivery health</h2><p>Initiatives and linked projects for ${scope.toLowerCase()}</p></div></div><div class="donut-wrap"><div class="donut" style="--value:${healthPct}"><div class="donut-label"><strong>${healthPct}%</strong><small>on track</small></div></div><div class="legend"><div class="legend-row"><span>On Track</span><strong>${onTrack}</strong></div><div class="legend-row"><span>At Risk</span><strong>${atRisk}</strong></div><div class="legend-row"><span>Overdue</span><strong>${delayed}</strong></div><div class="legend-row"><span>Completed</span><strong>${completed}</strong></div></div></div></section></div>`+
       `<div class="grid two-col dashboard-management-row" style="margin-top:15px"><section class="card panel"><div class="panel-header"><div><h2>Management attention</h2><p>Exceptions derived from the saved HOME31 delivery records.</p></div><span class="badge ${attention.length?'amber':'green'}">${attention.length} items</span></div><div class="dashboard-attention-list">${attention.length?attention.map(a=>`<div class="dashboard-attention-item ${a.level}"><span class="attention-indicator"></span><div><strong>${escapeHtml(a.label)}</strong><small>${escapeHtml(a.detail)}</small></div></div>`).join(''):'<div class="empty-state compact"><strong>No immediate exceptions</strong>All visible records have acceptable delivery information.</div>'}</div></section>
       <section class="card panel"><div class="panel-header"><div><h2>Upcoming delivery commitments</h2><p>Nearest saved target dates across initiatives and linked projects.</p></div><button class="action-button" data-route="projects">Open projects</button></div><div class="status-list">${commitments.length?commitments.map(item=>`<div class="status-item"><div><strong>${escapeHtml(item.title)}</strong><small>${pretty(item.sourceType)} · ${escapeHtml(item.owner||'Unassigned')} · ${formatDate(item.targetDate)}</small></div>${statusBadge(item.health)}</div>`).join(''):'<div class="empty-state compact"><strong>No dated commitments</strong>Add target dates to the initiative or linked project records.</div>'}</div></section></div>`+
       renderDashboardDeliveryRegister(deliveryItems);
@@ -251,7 +259,7 @@
     const route=event.target.closest('[data-route]');if(route){navigate(route.dataset.route);return;}
     const button=event.target.closest('[data-action]');if(!button)return;const action=button.dataset.action,id=button.dataset.id;
     try{
-      if(action==='retry-data-load'){state.data=await loadWithSpinner();if(state.data){const active=state.data.reportingYears.find(y=>y.active)||state.data.reportingYears.slice().sort((a,b)=>b.year-a.year)[0];state.filters.year=active?active.year:new Date().getFullYear();render();}}
+      if(action==='retry-data-load'){state.data=await loadWithSpinner();if(state.data){const active=state.data.reportingYears.find(y=>y.active)||state.data.reportingYears.slice().sort((a,b)=>b.year-a.year)[0];state.filters.year=active?active.year:new Date().getFullYear();state.dashboardYear='all';render();}}
       else if(action==='new-initiative')openInitiativeModal();
       else if(action==='edit-initiative')openInitiativeModal(state.data.initiatives.find(i=>i.id===id));
       else if(action==='view-initiative')openInitiativeView(state.data.initiatives.find(i=>i.id===id));
@@ -275,6 +283,7 @@
     }catch(error){toast(error.message||'Action failed.','error');}
   }
   function handlePageChange(event){
+    if(event.target.hasAttribute('data-dashboard-year')){state.dashboardYear=event.target.value==='all'?'all':Number(event.target.value);render();return;}
     const filter=event.target.dataset.filter;if(filter){state.filters[filter]=filter==='year'?Number(event.target.value):event.target.value;render();return;}
     const compare=event.target.dataset.compare;if(compare){if(compare==='from')state.compareFrom=Number(event.target.value);else state.compareTo=Number(event.target.value);render();}
   }
