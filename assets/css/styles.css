@@ -123,3 +123,6 @@
 
 /* HOME31 CSV validation and safe import */
 .initiative-import-table{min-width:920px}.initiative-import-table td:last-child{min-width:280px;white-space:normal}.import-row-message{display:block;margin-top:6px;color:var(--red-600);font-size:8px;line-height:1.45}.import-row-message.warning-text{color:var(--amber-600)}.import-block-note{margin:12px 0 0}.import-summary strong{font-size:11px}.import-summary span{line-height:1.4}
+
+/* V7.6 permanent initiative deletion */
+.action-button.delete-action{background:#fff0f0;color:#a52e2e;border:1px solid #efc3c3}.action-button.delete-action:hover{background:#ffe2e2;color:#8f2020}
