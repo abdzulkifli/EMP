@@ -365,7 +365,7 @@
         owner:formData.projectOwnerName || i.project_owner_name,strategicPillarId:i.strategic_pillar_id,
         strategicPillarName:i.strategic_pillar_name,reportingYearId:i.reporting_year_id,year:i.reporting_year,
         classification:i.initiative_type,status:i.cycle_status,startDate:i.planned_start_date,targetDate:i.planned_end_date,
-        progress:Number(i.progress_percentage||0),priority:i.priority || 'MEDIUM',requestedBudget:Number(i.requested_budget||0),
+        progress:Number(i.progress_percentage||0),priority:i.priority || 'MEDIUM',requestedBudget:Number(formData.initialEstimatedCost ?? i.requested_budget ?? 0),
         approvedBudget:Number(i.approved_budget||0),committedBudget:phase3.committedAmount!==null&&phase3.committedAmount!==undefined?Number(phase3.committedAmount):Number(i.committed_amount||0),
         utilisedBudget:phase3.utilisedAmount!==null&&phase3.utilisedAmount!==undefined?Number(phase3.utilisedAmount):Number(i.utilised_amount||0),
         forecastBudget:phase3.forecastAtCompletion!==null&&phase3.forecastAtCompletion!==undefined?Number(phase3.forecastAtCompletion):Number(i.forecast_amount||0),
@@ -427,7 +427,6 @@
     if(!isLive()){
       var db = getDemoDb();
       var existing = record.id && db.initiatives.find(function(i){return i.id===record.id;});
-      var previousApprovedBudget = existing ? Number(existing.approvedBudget||0) : null;
       if(existing) Object.assign(existing,record);
       else {
         record.id=uid('init');
@@ -436,20 +435,23 @@
         record.archived=false;
         db.initiatives.push(record);
       }
-      var auditDetails=(existing?'Updated ':'Created ')+record.title+'.';
-      var currentApprovedBudget=Number(record.approvedBudget||0);
-      if(existing&&previousApprovedBudget!==currentApprovedBudget){
-        auditDetails+=' Approved Budget revised from RM '+previousApprovedBudget.toFixed(2)+' to RM '+currentApprovedBudget.toFixed(2)+' (variance '+(currentApprovedBudget-previousApprovedBudget>=0?'+':'')+(currentApprovedBudget-previousApprovedBudget).toFixed(2)+').';
-      }
-      demoAudit(db,user,existing?'UPDATE':'CREATE','Initiative',auditDetails);
+      demoAudit(db,user,existing?'UPDATE':'CREATE','Initiative',(existing?'Updated ':'Created ')+record.title+'.');
       saveDemoDb(db); return clone(record);
     }
+    // Compatibility with older HOME31 database functions that still require
+    // approved_budget <= requested_budget. The comprehensive form retains the
+    // exact initial estimate in formData.initialEstimatedCost, while the core
+    // RPC receives a non-blocking ceiling value.
+    var requestedBudgetForCore = Math.max(
+      Number(record.requestedBudget||0),
+      Number(record.approvedBudget||0)
+    );
     var payload = {
       p_initiative_id:record.id||null,p_cycle_id:record.cycleId||null,p_code:record.code,p_title:record.title,p_description:record.description||'',
       p_portfolio_id:record.portfolioId || context.defaultPortfolioId,p_department_id:record.departmentId,p_project_owner_id:record.ownerId || user.id,
       p_strategic_pillar_id:record.strategicPillarId || context.defaultStrategicPillarId,p_reporting_year_id:record.reportingYearId,
       p_initiative_type:record.classification,p_cycle_status:record.status,p_planned_start_date:record.startDate||null,p_planned_end_date:record.targetDate||null,
-      p_progress_percentage:Number(record.progress||0),p_requested_budget:Number(record.requestedBudget||0),p_approved_budget:Number(record.approvedBudget||0),
+      p_progress_percentage:Number(record.progress||0),p_requested_budget:requestedBudgetForCore,p_approved_budget:Number(record.approvedBudget||0),
       p_forecast_amount:Number(record.forecastBudget||record.approvedBudget||0)
     };
     var coreResult = await request('/rest/v1/rpc/save_initiative_cycle',{method:'POST',body:JSON.stringify(payload)});
@@ -460,7 +462,7 @@
     }
     if(!cycleId) throw new Error('The initiative was saved, but HOME31 could not resolve its annual cycle for the comprehensive form payload. Refresh and edit the record again.');
     if(record.formData){
-      var formPayload={initiative_cycle_id:cycleId,form_version:'V7.9.4.10',form_data:record.formData,updated_by:user.id};
+      var formPayload={initiative_cycle_id:cycleId,form_version:'V7.9.4.9',form_data:record.formData,updated_by:user.id};
       if(!record.cycleId) formPayload.submitted_by=user.id;
       await request('/rest/v1/initiative_form_submissions?on_conflict=initiative_cycle_id',{
         method:'POST',
