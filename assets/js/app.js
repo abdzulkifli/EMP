@@ -306,19 +306,31 @@
   function renderBudgetJourneyCard(initiatives){
     const stages=budgetJourney(initiatives);
     const stageClass=['initial','challenge','retreat','approved'];
+    const stageHelp=[
+      'Original estimated requirement before challenge and prioritisation.',
+      'Recorded amount after the formal challenge review.',
+      'Amount proposed for management approval.',
+      'Official portfolio cost basis used by HOME31.'
+    ];
     const comparable=initiatives.map(i=>{
       const initial=numberOrNull(i.formData?.initialEstimatedCost??i.requestedBudget);
       const approved=numberOrNull(i.formData?.approvedBudget??i.approvedBudget);
       return initial!==null&&approved!==null?{initial,approved}:null;
     }).filter(Boolean);
+    const completeJourneyCount=initiatives.filter(i=>[
+      numberOrNull(i.formData?.initialEstimatedCost??i.requestedBudget),
+      numberOrNull(i.formData?.postChallengeEstimatedCost),
+      numberOrNull(i.formData?.proposedBudget),
+      numberOrNull(i.formData?.approvedBudget??i.approvedBudget)
+    ].every(v=>v!==null)).length;
     const comparableInitial=comparable.reduce((s,r)=>s+r.initial,0);
     const comparableApproved=comparable.reduce((s,r)=>s+r.approved,0);
     const savings=comparableInitial-comparableApproved;
     const savingsPct=comparableInitial?Math.round((savings/comparableInitial)*1000)/10:null;
     const missing=stages.reduce((s,r)=>s+(r.total-r.coverage),0);
     const savingsLabel=!comparable.length?'Not comparable':money(savings);
-    const savingsMeta=!comparable.length?'No records contain both initial and approved values':`${savingsPct>=0?'Reduction':'Increase'} of ${Math.abs(savingsPct).toFixed(1)}% across ${comparable.length} comparable initiative${comparable.length===1?'':'s'}`;
-    return `<article class="budget-journey-card card has-tooltip" data-tooltip="Tracks the financial journey from initial estimate through challenge and retreat to the official Approved Budget. Missing values are shown as not recorded, not RM 0."><div class="budget-journey-header"><div><span class="eyebrow">Budget journey</span><h2>From estimate to approval</h2></div><div class="budget-journey-saving ${savings<0?'negative':''}"><small>${savings<0?'Budget increase':'Challenge savings'}</small><strong>${savingsLabel}</strong><span>${escapeHtml(savingsMeta)}</span></div></div><div class="budget-journey-stages">${stages.map((r,idx)=>`<div class="budget-stage ${stageClass[idx]} has-tooltip" data-tooltip="${escapeAttr(r.label+': '+(r.coverage?money(r.value):'Not recorded')+'. Coverage '+r.coverage+' of '+r.total+' initiative cycles.')}"><span>${escapeHtml(r.label)}</span><strong>${r.coverage?moneyShort(r.value):'Not recorded'}</strong><small>${r.coverage} of ${r.total} recorded</small>${idx<stages.length-1?'<i aria-hidden="true">→</i>':''}</div>`).join('')}</div><div class="budget-journey-footer"><span><b>${comparable.length}</b> comparable records</span><span><b>${missing}</b> missing stage values</span><span><b>${stages[3]?.coverage||0}</b> approved budgets recorded</span></div></article>`;
+    const savingsMeta=!comparable.length?'No records contain both Initial Estimate and Approved Budget':`${savingsPct>=0?'Reduction':'Increase'} of ${Math.abs(savingsPct).toFixed(1)}% from Initial Estimate to Approved Budget`;
+    return `<article class="budget-journey-card card has-tooltip" data-tooltip="Shows exact recorded portfolio amounts at each financial stage. Supporting text remains visible below each amount; hover provides additional detail. Missing values are not treated as RM 0."><div class="budget-journey-header"><div><span class="eyebrow">Budget journey</span><h2>From estimate to approval</h2><p>Exact recorded amounts and data coverage for the current Command Center filters.</p></div><div class="budget-journey-saving ${savings<0?'negative':''}"><small>${savings<0?'Budget increase':'Estimate-to-approval reduction'}</small><strong>${savingsLabel}</strong><span>${escapeHtml(savingsMeta)}</span><em>${comparable.length} Initial vs Approved comparable record${comparable.length===1?'':'s'}</em></div></div><div class="budget-journey-stages">${stages.map((r,idx)=>`<div class="budget-stage ${stageClass[idx]} has-tooltip" data-tooltip="${escapeAttr(r.label+': '+(r.coverage?money(r.value):'Not recorded')+'. '+stageHelp[idx]+' Coverage: '+r.coverage+' of '+r.total+' initiative cycles; '+(r.total-r.coverage)+' missing.')}"><span>${escapeHtml(r.label)}</span><strong>${r.coverage?money(r.value):'Not recorded'}</strong><small class="budget-stage-help">${escapeHtml(stageHelp[idx])}</small><small class="budget-stage-coverage">${r.coverage} of ${r.total} recorded${r.total-r.coverage?` · ${r.total-r.coverage} missing`:''}</small>${idx<stages.length-1?'<i aria-hidden="true">→</i>':''}</div>`).join('')}</div><div class="budget-journey-footer"><span><b>${comparable.length}</b> Initial vs Approved comparable records</span><span><b>${completeJourneyCount}</b> complete four-stage records</span><span><b>${missing}</b> missing stage values</span><span><b>${stages[3]?.coverage||0}</b> approved budgets recorded</span></div></article>`;
   }
   function dashboardFitOptions(){const values=[...new Set((state.data.initiatives||[]).map(i=>i.formData?.home31FitDecision||'Derived automatically'))].sort();return `<option value="all">All HOME31 fit</option>${values.map(v=>`<option value="${escapeAttr(v)}" ${state.dashboardFit===v?'selected':''}>${escapeHtml(v)}</option>`).join('')}`;}
   function renderDashboardFilters(){
