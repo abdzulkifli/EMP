@@ -361,6 +361,32 @@
     return request('/functions/v1/admin-users',{method:'POST',body:JSON.stringify({action:'create',fullName:record.name,email:record.email,temporaryPassword:record.password,roleCode:record.role,departmentId:record.departmentId})});
   }
 
+  async function updateUser(record,user){
+    if(!isLive()){
+      var db=getDemoDb(), target=db.users.find(function(u){return u.id===record.id;});
+      if(!target) throw new Error('User not found.');
+      if(db.users.some(function(u){return u.id!==record.id && String(u.email).toLowerCase()===String(record.email).toLowerCase();})) throw new Error('A user with that email already exists.');
+      target.name=record.name;
+      target.email=record.email;
+      target.departmentId=record.departmentId;
+      target.role=record.role;
+      demoAudit(db,user,'UPDATE','User','Updated '+record.email+'.');
+      saveDemoDb(db);
+      return clone(target);
+    }
+    return request('/functions/v1/admin-users',{
+      method:'POST',
+      body:JSON.stringify({
+        action:'update',
+        userId:record.id,
+        fullName:record.name,
+        email:record.email,
+        roleCode:record.role,
+        departmentId:record.departmentId
+      })
+    });
+  }
+
   async function updateUserStatus(id,status,user){
     if(!isLive()){
       var db=getDemoDb(), target=db.users.find(function(u){return u.id===id;});
@@ -468,7 +494,7 @@
 
   window.HOME31_API={
     config:config,isLive:isLive,roleLabel:roleLabel,signIn:signIn,signOut:signOut,getCurrentUser:getCurrentUser,changePassword:changePassword,loadData:loadData,
-    saveInitiative:saveInitiative,archiveInitiative:archiveInitiative,saveProject:saveProject,saveUser:saveUser,updateUserStatus:updateUserStatus,saveDepartment:saveDepartment,saveYear:saveYear,
+    saveInitiative:saveInitiative,archiveInitiative:archiveInitiative,saveProject:saveProject,saveUser:saveUser,updateUser:updateUser,updateUserStatus:updateUserStatus,saveDepartment:saveDepartment,saveYear:saveYear,
     loadPhase3History:loadPhase3History,saveBenefitMeasurement:saveBenefitMeasurement,saveCbaReview:saveCbaReview,saveFinanceUpdate:saveFinanceUpdate,saveContinuityLink:saveContinuityLink,saveDecisionReadinessAssessment:saveDecisionReadinessAssessment,resetDemo:resetDemo
   };
 })();
