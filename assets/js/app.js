@@ -22,7 +22,7 @@
   async function init(){
     ['login-screen','login-form','login-email','login-password','login-alert','mode-copy','app-shell','main-nav','page-root','user-menu','user-menu-button','user-avatar','user-name','user-role','quick-add','mobile-menu','modal-layer','modal-title','modal-eyebrow','modal-content','modal-close','toast','csv-file','footer-mode'].forEach(id=>el[toCamel(id)]=document.getElementById(id));
     el.modeCopy.textContent = api.isLive() ? 'Sign in securely to access the HOME31 Enterprise Portfolio Management platform.' : 'Demo mode is active. Data is stored only in this browser.';
-    el.footerMode.textContent = api.isLive() ? 'Supabase live mode' : 'Demo mode · local browser data';
+    el.footerMode.textContent = api.isLive() ? 'Developed by Abdullah Zulkifli · Corporate Planning & Strategy' : 'Demo mode · local browser data';
     bindStaticEvents();
     const current = await api.getCurrentUser();
     if(current){ await enterApp(current); } else showLogin();
