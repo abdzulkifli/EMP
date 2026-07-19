@@ -794,7 +794,7 @@ This will also delete them from the database and cannot be undone. Export the CS
     }
     el.modalLayer.classList.add('hidden');el.modalContent.innerHTML='';
   }
-  const HOME31_FORM_VERSION='V7.9.4.9';
+  const HOME31_FORM_VERSION='V7.9.4.10';
   const HOME31_FORM_STEPS=['Profile','Strategy & ICT','Value & Plan','Finance','HR & Change','Evidence','Review'];
   const EVIDENCE_KEYS=['evidenceProblem','evidenceBaseline','evidenceBusinessCase','evidenceFinancial','evidenceRisk','evidenceImplementation','evidenceHr','evidenceIct','evidenceStakeholder','evidenceChallenge'];
 
@@ -816,6 +816,29 @@ This will also delete them from the database and cannot be undone. Export the CS
     ['rolesAffected','progress','readiness'].forEach(key=>data[key]=Number(data[key]||0));
     ['cbaRatio','initialEstimatedCost','postChallengeEstimatedCost','proposedBudget','approvedBudget'].forEach(key=>data[key]=data[key]===''?null:Number(data[key]));
     return data;
+  }
+  function validateFinancialAmounts(data){
+    const fields=[
+      ['Initial estimated cost',data.initialEstimatedCost],
+      ['Estimated cost post challenge',data.postChallengeEstimatedCost],
+      ['Proposed budget post challenge',data.proposedBudget],
+      ['Approved Budget',data.approvedBudget]
+    ];
+    fields.forEach(([label,value])=>{
+      if(value===null||value===undefined||value==='')return;
+      if(!Number.isFinite(Number(value)))throw new Error(label+' must contain a valid amount.');
+      if(Number(value)<0)throw new Error(label+' cannot be negative. Enter the revised total amount; HOME31 will calculate the plus or minus variance automatically.');
+    });
+  }
+  function roundMoney(value){return Math.round((Number(value||0)+Number.EPSILON)*100)/100;}
+  function exactMoneyOrMissing(value){return value===null||value===undefined||value===''?'<span class="muted">Not recorded</span>':new Intl.NumberFormat(config.locale||'en-MY',{style:'currency',currency:config.currency||'MYR',minimumFractionDigits:0,maximumFractionDigits:2}).format(Number(value));}
+  function signedMoney(value){
+    const amount=roundMoney(value),prefix=amount>0?'+':amount<0?'−':'';
+    return prefix+new Intl.NumberFormat(config.locale||'en-MY',{style:'currency',currency:config.currency||'MYR',minimumFractionDigits:0,maximumFractionDigits:2}).format(Math.abs(amount));
+  }
+  function budgetVariance(current,baseline){
+    const a=numberOrNull(current),b=numberOrNull(baseline);
+    return a===null||b===null?null:roundMoney(a-b);
   }
   function applyInitiativeFormData(form,data){
     Object.entries(data||{}).forEach(([key,value])=>{
@@ -840,7 +863,13 @@ This will also delete them from the database and cannot be undone. Export the CS
     const evidenceText=document.getElementById('initiative-evidence-score');if(evidenceText)evidenceText.textContent=evidence+'%';
     const evidenceBar=document.getElementById('initiative-evidence-bar');if(evidenceBar)evidenceBar.style.width=evidence+'%';
     const budget=document.getElementById('initiative-budget-summary');if(budget){
-      budget.innerHTML=`<div><small>Initial estimate</small><strong>${money(data.initialEstimatedCost)}</strong></div><div><small>Post challenge</small><strong>${money(data.postChallengeEstimatedCost)}</strong></div><div><small>Retreat proposal</small><strong>${money(data.proposedBudget)}</strong></div><div><small>Approved Budget</small><strong>${money(data.approvedBudget)}</strong></div>`;
+      const previousApproved=form.dataset.hasPreviousApproved==='true'?numberOrNull(form.dataset.previousApprovedBudget):null;
+      const challengeVariance=budgetVariance(data.postChallengeEstimatedCost,data.initialEstimatedCost);
+      const proposalVariance=budgetVariance(data.proposedBudget,data.postChallengeEstimatedCost);
+      const approvalVariance=budgetVariance(data.approvedBudget,data.proposedBudget);
+      const revisionVariance=budgetVariance(data.approvedBudget,previousApproved);
+      const varianceRow=(label,value)=>value===null?'':`<div><small>${escapeHtml(label)}</small><strong class="${value>0?'positive':value<0?'negative':''}">${signedMoney(value)}</strong></div>`;
+      budget.innerHTML=`<div><small>Initial estimate</small><strong>${exactMoneyOrMissing(data.initialEstimatedCost)}</strong></div><div><small>Post challenge</small><strong>${exactMoneyOrMissing(data.postChallengeEstimatedCost)}</strong></div><div><small>Proposed budget</small><strong>${exactMoneyOrMissing(data.proposedBudget)}</strong></div><div><small>Approved Budget</small><strong>${exactMoneyOrMissing(data.approvedBudget)}</strong></div>${varianceRow('Post challenge vs initial',challengeVariance)}${varianceRow('Proposal vs post challenge',proposalVariance)}${varianceRow('Approval vs proposal',approvalVariance)}${previousApproved!==null?varianceRow('Revision vs previously approved',revisionVariance):''}<div class="alert info span-2"><strong>Increases and decreases are allowed.</strong><br>These plus or minus movements are informational only and will not block saving. Approved Budget remains the official portfolio cost basis.</div>`;
     }
     const review=document.getElementById('initiative-review-summary');if(review){
       const pillar=state.data.strategicPillars?.find(p=>p.id===data.strategicPillarId)?.name||'Not selected';
@@ -880,7 +909,7 @@ This will also delete them from the database and cannot be undone. Export the CS
     const scopedDepartments=isAdmin?state.data.departments.filter(x=>x.active!==false):state.data.departments.filter(x=>x.id===state.user.departmentId);
     const createdByHtml=isAdmin?`<label class="field span-2"><span>Record account / submitter</span><select id="initiative-created-by" name="createdById">${state.data.users.map(u=>`<option value="${u.id}" ${u.id===d.createdById?'selected':''}>${escapeHtml(u.name)} · ${escapeHtml(u.email)}</option>`).join('')}</select><small>Controls the account associated with this record. It remains separate from Project Owner Name.</small></label>`:`<input id="initiative-created-by" name="createdById" type="hidden" value="${escapeAttr(state.user.id)}"><div class="alert info span-2">Record account / submitter: <strong>${escapeHtml(state.user.name)}</strong></div>`;
     const evidenceOptions=['Not available','In progress','Available','Not applicable'];
-    openModal(item.id?'Edit Initiative':'Create Initiative','Comprehensive HOME31 Record',`<form id="initiative-form" class="initiative-comprehensive-form" data-step="1" data-dirty="false"><input id="initiative-id" name="initiativeId" type="hidden" value="${escapeAttr(item.id||'')}"><input id="initiative-code" name="initiativeCode" type="hidden" value="${escapeAttr(item.code||'')}">
+    openModal(item.id?'Edit Initiative':'Create Initiative','Comprehensive HOME31 Record',`<form id="initiative-form" class="initiative-comprehensive-form" data-step="1" data-dirty="false" data-has-previous-approved="${item.id&&numberOrNull(item.formData?.approvedBudget??item.approvedBudget)!==null?'true':'false'}" data-previous-approved-budget="${escapeAttr(numberOrNull(item.formData?.approvedBudget??item.approvedBudget)??'')}"><input id="initiative-id" name="initiativeId" type="hidden" value="${escapeAttr(item.id||'')}"><input id="initiative-code" name="initiativeCode" type="hidden" value="${escapeAttr(item.code||'')}">
       <div class="initiative-draft-bar"><div><strong>Draft protection is on</strong><span id="initiative-draft-status">Changes are automatically protected on this device.</span></div><div><button id="initiative-save-draft" class="btn outline compact" type="button">Save draft now</button><button id="initiative-clear-draft" class="btn secondary compact" type="button">Discard draft</button></div></div><div id="initiative-draft-recovery" class="alert info hidden"></div>
       <div class="initiative-stepper">${HOME31_FORM_STEPS.map((label,index)=>`<button type="button" data-form-step="${index+1}" class="${index===0?'active':''}"><span>${index+1}</span>${escapeHtml(label)}</button>`).join('')}</div>
       <div class="form-completion"><div><span>Form completion</span><strong id="initiative-form-completion">0%</strong></div><div class="bar-track"><span id="initiative-form-completion-bar" class="bar-fill" style="width:0%"></span></div></div>
@@ -904,8 +933,8 @@ This will also delete them from the database and cannot be undone. Export the CS
         <label class="field"><span>CBA ratio</span><input id="initiative-cba-ratio" name="cbaRatio" type="number" min="0" step="0.01" value="${d.cbaRatio??''}"></label><label class="field"><span>Progress (%)</span><input id="initiative-progress" name="progress" type="number" min="0" max="100" value="${Number(d.progress||0)}"></label><label class="field"><span>Readiness (%)</span><input id="initiative-readiness" name="readiness" type="number" min="0" max="100" value="${Number(d.readiness||0)}"></label>
         <label class="field span-2"><span>Action plan and milestone dates *</span><textarea id="initiative-action-plan" name="actionPlan" rows="6" required>${escapeHtml(d.actionPlan)}</textarea></label><label class="field span-2"><span>Immediate next action or milestone</span><textarea id="initiative-next-action" name="nextAction">${escapeHtml(d.nextAction)}</textarea></label>
       </div></section>
-      <section class="initiative-form-step" data-step-panel="4"><div class="form-section-heading"><span class="eyebrow">Step 4</span><h3>Financial Assessment & Challenge-Session Decisions</h3><p>Exact values are retained; Approved Budget remains the official portfolio cost basis.</p></div><div class="form-grid">
-        <label class="field"><span>Initial estimated cost (RM)</span><input id="initiative-estimated-cost" name="initialEstimatedCost" type="number" min="0" step="0.01" value="${d.initialEstimatedCost??''}"></label><label class="field"><span>Estimated cost post challenge (RM)</span><input id="initiative-estimated-cost-post-challenge" name="postChallengeEstimatedCost" type="number" min="0" step="0.01" value="${d.postChallengeEstimatedCost??''}"></label><label class="field"><span>Proposed budget post retreat (RM)</span><input id="initiative-proposed-budget" name="proposedBudget" type="number" min="0" step="0.01" value="${d.proposedBudget??''}"></label><label class="field"><span>Approved budget (RM)</span><input id="initiative-approved-budget" name="approvedBudget" type="number" min="0" step="0.01" value="${d.approvedBudget??''}"></label>
+      <section class="initiative-form-step" data-step-panel="4"><div class="form-section-heading"><span class="eyebrow">Step 4</span><h3>Financial Assessment & Challenge-Session Decisions</h3><p>Exact values are retained. Amounts may increase or decrease at any stage; HOME31 records the movement without blocking the save. Approved Budget remains the official portfolio cost basis.</p></div><div class="alert info"><strong>Budget movement rule</strong><br>Enter the latest total amount in each field. HOME31 will calculate positive or negative variance automatically, including revisions after approval.</div><div class="form-grid">
+        <label class="field"><span>Initial estimated cost (RM)</span><input id="initiative-estimated-cost" name="initialEstimatedCost" type="number" min="0" step="0.01" inputmode="decimal" value="${d.initialEstimatedCost??''}"></label><label class="field"><span>Estimated cost post challenge (RM)</span><input id="initiative-estimated-cost-post-challenge" name="postChallengeEstimatedCost" type="number" min="0" step="0.01" inputmode="decimal" value="${d.postChallengeEstimatedCost??''}"></label><label class="field"><span>Proposed budget post challenge (RM)</span><input id="initiative-proposed-budget" name="proposedBudget" type="number" min="0" step="0.01" inputmode="decimal" value="${d.proposedBudget??''}"></label><label class="field"><span>Approved Budget (RM)</span><input id="initiative-approved-budget" name="approvedBudget" type="number" min="0" step="0.01" inputmode="decimal" value="${d.approvedBudget??''}"></label>
         <label class="field span-2"><span>Remarks from post-challenge session</span><textarea id="initiative-post-challenge-remarks" name="postChallengeRemarks">${escapeHtml(d.postChallengeRemarks)}</textarea></label><label class="field span-2"><span>Remarks from Finance on approved budget</span><textarea id="initiative-finance-remarks" name="financeRemarks">${escapeHtml(d.financeRemarks)}</textarea></label><label class="field span-2"><span>General remarks / data-quality note</span><textarea id="initiative-general-remarks" name="generalRemarks">${escapeHtml(d.generalRemarks)}</textarea></label>
       </div><div id="initiative-budget-summary" class="budget-summary"></div></section>
       <section class="initiative-form-step" data-step-panel="5"><div class="form-section-heading"><span class="eyebrow">Step 5</span><h3>Detailed HR, Workforce & Change Impact</h3><p>People implications are assessed early and retained with the annual record.</p></div><div class="form-grid">
@@ -931,6 +960,19 @@ This will also delete them from the database and cannot be undone. Export the CS
     updateInitiativeFormSummary(form);
     form.addEventListener('submit',async event=>{
       event.preventDefault();if(!form.reportValidity())return;const f=collectInitiativeForm(form);
+      validateFinancialAmounts(f);
+      const previousApproved=numberOrNull(item.formData?.approvedBudget??item.approvedBudget),currentApproved=numberOrNull(f.approvedBudget),approvedMovement=previousApproved!==null&&currentApproved!==null?roundMoney(currentApproved-previousApproved):null;
+      if(item.id&&approvedMovement!==null&&approvedMovement!==0){
+        f.previousApprovedBudget=previousApproved;
+        f.approvedBudgetVariance=approvedMovement;
+        f.approvedBudgetRevisionDirection=approvedMovement>0?'INCREASE':'DECREASE';
+        f.approvedBudgetLastChangedAt=new Date().toISOString();
+        f.approvedBudgetLastChangedBy=state.user.id;
+      }else if(!item.id&&currentApproved!==null){
+        f.previousApprovedBudget=null;
+        f.approvedBudgetVariance=0;
+        f.approvedBudgetRevisionDirection='INITIAL_APPROVAL';
+      }
       if(f.targetDate&&f.startDate&&f.targetDate<f.startDate)throw new Error('Target completion date cannot be before the start date.');
       if(f.hrCollaborationRequirement==='Required'&&(!String(f.hrOwner||'').trim()||!String(f.affectedGroups||'').trim()))throw new Error('HR owner and affected workforce groups are required when HR collaboration is required.');
       if(f.hrReviewStatus==='Conditionally supported'&&!String(f.hrComments||'').trim())throw new Error('HR conditions or required actions must be recorded for conditional support.');
@@ -941,7 +983,7 @@ This will also delete them from the database and cannot be undone. Export the CS
       state.filters.department='all';
       state.filters.search='';
       state.filters.status='all';
-      localStorage.removeItem(key);form.dataset.dirty='false';closeModal(true);await refreshData();toast('Comprehensive initiative saved. Project Management is now showing AMP '+year+'.','success');
+      localStorage.removeItem(key);form.dataset.dirty='false';closeModal(true);await refreshData();toast(approvedMovement!==null&&approvedMovement!==0?'Initiative saved. Approved Budget revision of '+signedMoney(approvedMovement)+' was accepted.':'Comprehensive initiative saved. Project Management is now showing AMP '+year+'.','success');
     });
   }
 

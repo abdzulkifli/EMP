@@ -427,6 +427,7 @@
     if(!isLive()){
       var db = getDemoDb();
       var existing = record.id && db.initiatives.find(function(i){return i.id===record.id;});
+      var previousApprovedBudget = existing ? Number(existing.approvedBudget||0) : null;
       if(existing) Object.assign(existing,record);
       else {
         record.id=uid('init');
@@ -435,7 +436,12 @@
         record.archived=false;
         db.initiatives.push(record);
       }
-      demoAudit(db,user,existing?'UPDATE':'CREATE','Initiative',(existing?'Updated ':'Created ')+record.title+'.');
+      var auditDetails=(existing?'Updated ':'Created ')+record.title+'.';
+      var currentApprovedBudget=Number(record.approvedBudget||0);
+      if(existing&&previousApprovedBudget!==currentApprovedBudget){
+        auditDetails+=' Approved Budget revised from RM '+previousApprovedBudget.toFixed(2)+' to RM '+currentApprovedBudget.toFixed(2)+' (variance '+(currentApprovedBudget-previousApprovedBudget>=0?'+':'')+(currentApprovedBudget-previousApprovedBudget).toFixed(2)+').';
+      }
+      demoAudit(db,user,existing?'UPDATE':'CREATE','Initiative',auditDetails);
       saveDemoDb(db); return clone(record);
     }
     var payload = {
@@ -454,7 +460,7 @@
     }
     if(!cycleId) throw new Error('The initiative was saved, but HOME31 could not resolve its annual cycle for the comprehensive form payload. Refresh and edit the record again.');
     if(record.formData){
-      var formPayload={initiative_cycle_id:cycleId,form_version:'V7.9.4.9',form_data:record.formData,updated_by:user.id};
+      var formPayload={initiative_cycle_id:cycleId,form_version:'V7.9.4.10',form_data:record.formData,updated_by:user.id};
       if(!record.cycleId) formPayload.submitted_by=user.id;
       await request('/rest/v1/initiative_form_submissions?on_conflict=initiative_cycle_id',{
         method:'POST',
