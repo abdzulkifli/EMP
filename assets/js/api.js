@@ -32,15 +32,75 @@
     db.audit = db.audit.slice(0,250);
   }
 
+  function decodeJwtExpiry(accessToken){
+    try{
+      var payload = String(accessToken||'').split('.')[1];
+      if(!payload) return 0;
+      payload = payload.replace(/-/g,'+').replace(/_/g,'/');
+      while(payload.length % 4) payload += '=';
+      var decoded = JSON.parse(atob(payload));
+      return decoded && decoded.exp ? Number(decoded.exp) * 1000 : 0;
+    }catch(error){ return 0; }
+  }
+
+  function sessionExpiryMs(session){
+    if(!session) return 0;
+    if(session.expires_at){
+      var value = Number(session.expires_at);
+      if(Number.isFinite(value)) return value > 1000000000000 ? value : value * 1000;
+    }
+    return decodeJwtExpiry(session.access_token);
+  }
+
+  function sessionNeedsRefresh(session){
+    if(!session || !session.access_token) return true;
+    var expiry = sessionExpiryMs(session);
+    return !!expiry && expiry <= Date.now() + 60000;
+  }
+
+  async function refreshLiveSession(){
+    var current = storageGet(SESSION_KEY);
+    if(!current || !current.refresh_token){
+      storageRemove(SESSION_KEY);
+      throw new Error('Your HOME31 session has expired. Sign in again.');
+    }
+    var response = await fetch(config.supabaseUrl.replace(/\/$/,'') + '/auth/v1/token?grant_type=refresh_token',{
+      method:'POST',
+      headers:{'apikey':config.publishableKey,'Content-Type':'application/json'},
+      body:JSON.stringify({refresh_token:current.refresh_token})
+    });
+    var text = await response.text();
+    var body = text ? (function(){ try{return JSON.parse(text);}catch(e){return text;} })() : null;
+    if(!response.ok || !body || !body.access_token){
+      storageRemove(SESSION_KEY);
+      throw new Error('Your HOME31 session has expired. Sign in again.');
+    }
+    var refreshed = Object.assign({},current,body,{_stored_at:Date.now()});
+    if(!refreshed.refresh_token) refreshed.refresh_token = current.refresh_token;
+    storageSet(SESSION_KEY,refreshed);
+    return refreshed;
+  }
+
   async function request(path, options){
     options = options || {};
+    var retried = options._home31Retried === true;
+    var fetchOptions = Object.assign({},options);
+    delete fetchOptions._home31Retried;
+    var isTokenRequest = path.indexOf('/auth/v1/token?grant_type=') === 0;
     var session = storageGet(SESSION_KEY);
-    var headers = Object.assign({'apikey':config.publishableKey,'Content-Type':'application/json'}, options.headers || {});
-    if(session && session.access_token) headers.Authorization = 'Bearer ' + session.access_token;
-    var response = await fetch(config.supabaseUrl.replace(/\/$/,'') + path, Object.assign({}, options, {headers:headers}));
+    if(!isTokenRequest && session && session.refresh_token && sessionNeedsRefresh(session)){
+      session = await refreshLiveSession();
+    }
+    var headers = Object.assign({'apikey':config.publishableKey,'Content-Type':'application/json'}, fetchOptions.headers || {});
+    if(!isTokenRequest && session && session.access_token) headers.Authorization = 'Bearer ' + session.access_token;
+    var response = await fetch(config.supabaseUrl.replace(/\/$/,'') + path, Object.assign({}, fetchOptions, {headers:headers}));
     var text = await response.text();
     var body = text ? (function(){ try{return JSON.parse(text);}catch(e){return text;} })() : null;
     if(!response.ok){
+      if(response.status === 401 && !isTokenRequest && !retried && session && session.refresh_token){
+        await refreshLiveSession();
+        return request(path,Object.assign({},options,{_home31Retried:true}));
+      }
       var message = body && (body.message || body.msg || body.error_description || body.error) || ('Request failed ('+response.status+')');
       throw new Error(message);
     }
@@ -131,7 +191,7 @@
       return enrichDemoUser(user,db);
     }
     var auth = await request('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email:email,password:password})});
-    storageSet(SESSION_KEY,auth);
+    storageSet(SESSION_KEY,Object.assign({},auth,{_stored_at:Date.now()}));
     return getCurrentUser();
   }
 
@@ -232,19 +292,29 @@
       var db=getDemoDb(),count=(db.audit||[]).length;
       db.audit=[];
       saveDemoDb(db);
-      return count;
+      return {deleted:count,remaining:0};
     }
-    var candidates=['audit_logs','audit_log'],lastError=null;
-    for(var i=0;i<candidates.length;i++){
-      try{
-        var table=candidates[i];
-        var existing=await request('/rest/v1/'+table+'?select=id&limit=1',{method:'GET',headers:{Accept:'application/json'}});
-        if(!Array.isArray(existing)) continue;
-        await request('/rest/v1/'+table+'?id=not.is.null',{method:'DELETE',headers:{Prefer:'return=minimal'}});
-        return true;
-      }catch(error){lastError=error;}
+
+    var before=await loadAuditRows();
+    var result;
+    try{
+      result=await request('/rest/v1/rpc/purge_audit_logs',{method:'POST',body:'{}'});
+    }catch(error){
+      var message=String(error&&error.message||'');
+      if(/could not find the function|PGRST202|404/i.test(message)){
+        throw new Error('The protected audit purge function is not installed. Run migration 005_audit_log_purge.sql in Supabase, then try again.');
+      }
+      throw error;
     }
-    throw lastError||new Error('Audit logs could not be deleted. Check the Supabase table and delete policy.');
+
+    var remaining=await loadAuditRows();
+    if(remaining.length){
+      throw new Error('Supabase did not remove the audit records. '+remaining.length+' records are still present. Run migration 005 and confirm that the signed-in account has the SUPER_ADMIN role.');
+    }
+
+    var deleted=Number(Array.isArray(result)?result[0]:result);
+    if(!Number.isFinite(deleted)) deleted=before.length;
+    return {deleted:deleted,remaining:0};
   }
 
   async function loadData(user){
