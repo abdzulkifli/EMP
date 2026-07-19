@@ -280,3 +280,32 @@ td .muted,td small,.record-meta,.table-meta{font-size:12px;line-height:1.45;colo
   th,td{padding:12px 11px}
   .panel{padding:16px}
 }
+
+
+/* V8.4 Executive Budget Journey */
+.command-finance-overview{display:grid;grid-template-columns:minmax(220px,.8fr) minmax(0,3.2fr);gap:12px;margin-bottom:12px;align-items:stretch}
+.command-finance-overview>.command-kpi{height:100%;min-height:174px}
+.operational-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}
+.budget-journey-card{padding:18px 20px;min-width:0;border-color:#c8e5df;background:linear-gradient(135deg,#f7fcfb 0%,#fff 58%,#f5f9fc 100%);box-shadow:0 8px 24px rgba(11,37,56,.06)}
+.budget-journey-header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:16px}
+.budget-journey-header h2{margin:3px 0 0;font-size:18px;line-height:1.25;letter-spacing:-.02em}
+.budget-journey-saving{min-width:220px;padding:10px 12px;border:1px solid #bfe2d8;border-radius:12px;background:#fff;text-align:right}
+.budget-journey-saving small,.budget-journey-saving span{display:block;color:var(--muted)}
+.budget-journey-saving small{font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
+.budget-journey-saving strong{display:block;margin:3px 0;color:#087865;font-size:20px;letter-spacing:-.03em}
+.budget-journey-saving span{font-size:11px;line-height:1.35}
+.budget-journey-saving.negative{border-color:#efc1c1;background:#fffafa}
+.budget-journey-saving.negative strong{color:#b42318}
+.budget-journey-stages{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.budget-stage{position:relative;min-width:0;padding:12px 28px 12px 12px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.budget-stage span,.budget-stage small{display:block;color:var(--muted)}
+.budget-stage span{font-size:11px;font-weight:800;letter-spacing:.035em;text-transform:uppercase}
+.budget-stage strong{display:block;margin:7px 0 4px;font-size:17px;line-height:1.15;letter-spacing:-.025em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.budget-stage small{font-size:11px;line-height:1.35}
+.budget-stage i{position:absolute;right:-9px;top:50%;z-index:2;display:grid;place-items:center;width:18px;height:18px;margin-top:-9px;border:1px solid #c8e5df;border-radius:50%;background:#edf8f5;color:#087865;font-size:11px;font-style:normal;font-weight:900}
+.budget-stage.initial{border-top:3px solid #7f8fa4}.budget-stage.challenge{border-top:3px solid #d49a2a}.budget-stage.retreat{border-top:3px solid #3979a8}.budget-stage.approved{border-top:3px solid #0c9b83;background:#f8fdfb}
+.budget-journey-footer{display:flex;flex-wrap:wrap;gap:14px;margin-top:13px;padding-top:12px;border-top:1px solid #dbe9e6;color:var(--muted);font-size:11px}
+.budget-journey-footer b{color:var(--ink);font-size:12px}
+@media(max-width:1300px){.command-finance-overview{grid-template-columns:1fr}.command-finance-overview>.command-kpi{min-height:126px}.operational-kpis{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:900px){.budget-journey-header{flex-direction:column}.budget-journey-saving{width:100%;min-width:0;text-align:left}.budget-journey-stages{grid-template-columns:repeat(2,1fr)}.budget-stage:nth-child(2) i{display:none}}
+@media(max-width:620px){.operational-kpis{grid-template-columns:1fr}.budget-journey-card{padding:16px}.budget-journey-stages{grid-template-columns:1fr}.budget-stage i{display:none}.budget-stage strong{font-size:18px}}
