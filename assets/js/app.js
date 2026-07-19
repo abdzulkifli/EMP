@@ -448,7 +448,7 @@
   }
   function renderDepartmentsAdmin(){return `<section class="card table-card"><div class="table-header"><strong>Departments</strong><span class="muted">Dynamic access scope</span></div><div class="table-wrap"><table><thead><tr><th>Code</th><th>Department</th><th>Status</th><th>Users</th><th>Initiatives</th><th>Actions</th></tr></thead><tbody>${state.data.departments.map(d=>`<tr><td><strong>${escapeHtml(d.code)}</strong></td><td>${escapeHtml(d.name)}</td><td>${statusBadge(d.active===false?'INACTIVE':'ACTIVE')}</td><td>${state.data.users.filter(u=>u.departmentId===d.id).length}</td><td>${state.data.initiatives.filter(i=>i.departmentId===d.id&&!i.archived).length}</td><td><button class="action-button" data-action="edit-department" data-id="${d.id}">Edit</button></td></tr>`).join('')}</tbody></table></div></section>`;}
   function renderYearsAdmin(){return `<section class="card table-card"><div class="table-header"><strong>Reporting years</strong><span class="muted">No years are hard-coded in the application</span></div><div class="table-wrap"><table><thead><tr><th>Year</th><th>Label</th><th>Active planning year</th><th>Initiatives</th><th>Projects</th><th>Actions</th></tr></thead><tbody>${state.data.reportingYears.slice().sort((a,b)=>b.year-a.year).map(y=>`<tr><td><strong>${y.year}</strong></td><td>${escapeHtml(y.label)}</td><td>${y.active?statusBadge('ACTIVE'):statusBadge('INACTIVE')}</td><td>${state.data.initiatives.filter(i=>Number(i.year)===Number(y.year)&&!i.archived).length}</td><td>${state.data.projects.filter(p=>Number(p.year)===Number(y.year)).length}</td><td><button class="action-button" data-action="edit-year" data-id="${y.id}">Edit</button></td></tr>`).join('')}</tbody></table></div></section>`;}
-  function renderAuditAdmin(){return `<section class="card table-card"><div class="table-header"><strong>Audit activity</strong><button class="btn outline compact" data-action="export-audit">Export CSV</button></div><div class="table-wrap"><table><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Entity</th><th>Details</th></tr></thead><tbody>${(state.data.audit||[]).map(a=>`<tr><td>${formatDateTime(a.time)}</td><td>${escapeHtml(a.user)}</td><td>${statusBadge(a.action)}</td><td>${escapeHtml(a.entity)}</td><td>${escapeHtml(a.details||'')}</td></tr>`).join('')||'<tr><td colspan="5"><div class="empty-state">No audit records loaded.</div></td></tr>'}</tbody></table></div></section>`;}
+  function renderAuditAdmin(){const canDelete=state.user.role==='SUPER_ADMIN',count=(state.data.audit||[]).length;return `<section class="card table-card"><div class="table-header"><div><strong>Audit activity</strong><span class="dashboard-table-note">${count} records loaded</span></div><div class="header-actions"><button class="btn outline compact" data-action="export-audit">Export CSV</button>${canDelete?`<button class="btn danger compact" data-action="delete-audit" ${count?'':'disabled'}>Delete Audit Logs</button>`:''}</div></div><div class="table-wrap"><table><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Entity</th><th>Details</th></tr></thead><tbody>${(state.data.audit||[]).map(a=>`<tr><td>${formatDateTime(a.time)}</td><td>${escapeHtml(a.user)}</td><td>${statusBadge(a.action)}</td><td>${escapeHtml(a.entity)}</td><td>${escapeHtml(a.details||'')}</td></tr>`).join('')||'<tr><td colspan="5"><div class="empty-state">No audit records loaded.</div></td></tr>'}</tbody></table></div></section>`;}
 
   function renderProfile(){const u=state.user;return pageHeader('Account & access','My Profile','Review your HOME31 identity, department scope and account controls.',`<button class="btn primary compact" data-action="change-password">Change password</button>`)+`<section class="card profile-card"><div class="profile-summary"><div class="profile-avatar">${initials(u.name)}</div><h2>${escapeHtml(u.name)}</h2><p>${escapeHtml(u.roleLabel)}</p><div class="metric-mini"><div><strong>${scopedInitiatives().length}</strong><small>Initiatives</small></div><div><strong>${scopedProjects().length}</strong><small>Projects</small></div><div><strong>${state.filters.year}</strong><small>Active year</small></div></div></div><div class="profile-details"><div class="detail-box"><small>Email address</small><strong>${escapeHtml(u.email)}</strong></div><div class="detail-box"><small>Department</small><strong>${escapeHtml(u.departmentName||departmentName(u.departmentId))}</strong></div><div class="detail-box"><small>Role</small><strong>${escapeHtml(u.roleLabel)}</strong></div><div class="detail-box"><small>Account status</small><strong>${statusBadge(u.status||'ACTIVE')}</strong></div><div class="detail-box"><small>Data mode</small><strong>${api.isLive()?'Supabase live':'Local demo'}</strong></div><div class="detail-box"><small>First-login password change</small><strong>${u.mustChangePassword?'Required':'Completed'}</strong></div></div></section>`;}
 
@@ -479,12 +479,24 @@
       else if(action==='new-year')openYearModal();
       else if(action==='edit-year')openYearModal(state.data.reportingYears.find(y=>y.id===id));
       else if(action==='admin-tab'){state.adminTab=button.dataset.tab;render();}
+      else if(action==='delete-audit')await deleteAuditLogs();
       else if(action==='change-password')openPasswordModal(false);
       else if(action==='print')window.print();
       else if(action==='import-initiatives'){el.csvFile.value='';el.csvFile.click();}
       else if(action.startsWith('export-'))exportReport(action.replace('export-',''));
     }catch(error){toast(error.message||'Action failed.','error');}
   }
+  async function deleteAuditLogs(){
+    const count=(state.data.audit||[]).length;
+    if(!count){toast('There are no audit logs to delete.','error');return;}
+    const confirmed=window.confirm(`Permanently delete all ${count} audit log records?\n\nThis will also delete them from the database and cannot be undone. Export the CSV first if you need a copy.`);
+    if(!confirmed)return;
+    await api.deleteAllAuditLogs(state.user);
+    state.data=await api.loadData(state.user);
+    render();
+    toast(`${count} audit log records were permanently deleted.`, 'success');
+  }
+
   function handlePageChange(event){
     if(event.target.hasAttribute('data-admin-user-filter')){const key=event.target.dataset.adminUserFilter;state.adminUserFilters[key]=event.target.value;render();return;}
     if(event.target.hasAttribute('data-dashboard-year')){state.dashboardYear=event.target.value==='all'?'all':Number(event.target.value);state.dashboardView='all';render();return;}

@@ -201,6 +201,52 @@
     return scoped;
   }
 
+  function mapAuditRow(row){
+    var details=row.details!==undefined?row.details:(row.new_values!==undefined?row.new_values:(row.metadata!==undefined?row.metadata:''));
+    if(details&&typeof details==='object') details=JSON.stringify(details);
+    return {
+      id:row.id,
+      time:row.created_at||row.occurred_at||row.event_time||row.time||row.timestamp,
+      user:row.user_name||row.actor_name||row.full_name||row.email||row.user_email||row.actor_id||'System',
+      action:row.action||row.action_type||row.event_type||'ACTIVITY',
+      entity:row.entity||row.entity_type||row.table_name||'system',
+      details:details||''
+    };
+  }
+
+  async function loadAuditRows(){
+    var candidates=[
+      '/rest/v1/audit_logs?select=*&order=created_at.desc&limit=1000',
+      '/rest/v1/audit_log?select=*&order=created_at.desc&limit=1000'
+    ];
+    for(var i=0;i<candidates.length;i++){
+      try{return await request(candidates[i],{method:'GET',headers:{Accept:'application/json'}});}
+      catch(error){if(i===candidates.length-1){console.warn('HOME31 audit source unavailable:',error.message);return [];}}
+    }
+    return [];
+  }
+
+  async function deleteAllAuditLogs(user){
+    if(!user||user.role!=='SUPER_ADMIN') throw new Error('Only the Super Administrator can delete audit logs.');
+    if(!isLive()){
+      var db=getDemoDb(),count=(db.audit||[]).length;
+      db.audit=[];
+      saveDemoDb(db);
+      return count;
+    }
+    var candidates=['audit_logs','audit_log'],lastError=null;
+    for(var i=0;i<candidates.length;i++){
+      try{
+        var table=candidates[i];
+        var existing=await request('/rest/v1/'+table+'?select=id&limit=1',{method:'GET',headers:{Accept:'application/json'}});
+        if(!Array.isArray(existing)) continue;
+        await request('/rest/v1/'+table+'?id=not.is.null',{method:'DELETE',headers:{Prefer:'return=minimal'}});
+        return true;
+      }catch(error){lastError=error;}
+    }
+    throw lastError||new Error('Audit logs could not be deleted. Check the Supabase table and delete policy.');
+  }
+
   async function loadData(user){
     if(!isLive()){
       var demo=hydrateDemoPhase3(getDemoDb());
@@ -220,7 +266,7 @@
       optionalRequestResult('/rest/v1/initiative_continuity_overview_v?select=*&order=updated_at.desc'),
       optionalRequestResult('/rest/v1/decision_readiness_models?select=id,code,name,description,status,effective_from,effective_to,is_default&status=eq.ACTIVE&order=is_default.desc,effective_from.desc'),
       optionalRequestResult('/rest/v1/decision_readiness_weights?select=id,model_id,dimension_code,dimension_label,weight_percentage,display_order,is_required&order=display_order'),
-      optionalRequestResult('/rest/v1/audit_logs?select=id,created_at,user_id,action,entity_type,entity_id,old_values,new_values&order=created_at.desc&limit=250')
+      loadAuditRows()
     ]);
     var formMap = {};
     (results[7] || []).forEach(function(row){ formMap[row.initiative_cycle_id] = row.form_data || {}; });
@@ -274,34 +320,7 @@
         if(user&&mapped.id===user.id){mapped.role=user.role||mapped.role;mapped.departmentId=user.departmentId||mapped.departmentId;mapped.name=user.name||mapped.name;mapped.status=user.status||mapped.status;}
         return mapped;
       }),
-      portfolios:results[4],strategicPillars:results[5],
-      audit:(results[12].data||[]).map(function(row){
-        var actor=(results[6]||[]).find(function(item){
-          return item.id===row.user_id;
-        });
-
-        var changes=row.new_values||row.old_values||{};
-        var details='';
-
-        try{
-          details=typeof changes==='string'
-            ? changes
-            : JSON.stringify(changes);
-        }catch(error){
-          details='';
-        }
-
-        return {
-          id:row.id,
-          time:row.created_at,
-          user:actor
-            ? (actor.full_name||actor.email||'Unknown user')
-            : 'System',
-          action:row.action||'ACTIVITY',
-          entity:row.entity_type||'Record',
-          details:details
-        };
-      }),
+      portfolios:results[4],strategicPillars:results[5],audit:(results[12]||[]).map(mapAuditRow),
       continuityLinks:(results[9].data||[]).map(function(row){return{id:row.id,previousCycleId:row.previous_cycle_id,currentCycleId:row.current_cycle_id,continuityType:row.continuity_type,matchConfidence:row.match_confidence===null?null:Number(row.match_confidence),matchMethod:row.match_method,approvedBudgetMovement:row.approved_budget_movement===null?null:Number(row.approved_budget_movement),cbaRatioMovement:row.cba_ratio_movement===null?null:Number(row.cba_ratio_movement),scopeChangeExplanation:row.scope_change_explanation,managementStatus:row.management_status,confirmedBy:row.confirmed_by,confirmedAt:row.confirmed_at,updatedAt:row.updated_at};}),
       decisionReadinessModels:(results[10].data||[]).map(function(row){return{id:row.id,code:row.code,name:row.name,description:row.description,status:row.status,effectiveFrom:row.effective_from,effectiveTo:row.effective_to,isDefault:row.is_default};}),
       decisionReadinessWeights:(results[11].data||[]).map(function(row){return{id:row.id,modelId:row.model_id,dimensionCode:row.dimension_code,dimensionLabel:row.dimension_label,weightPercentage:Number(row.weight_percentage||0),displayOrder:Number(row.display_order||0),isRequired:row.is_required};}),
@@ -523,6 +542,6 @@
   window.HOME31_API={
     config:config,isLive:isLive,roleLabel:roleLabel,signIn:signIn,signOut:signOut,getCurrentUser:getCurrentUser,changePassword:changePassword,loadData:loadData,
     saveInitiative:saveInitiative,archiveInitiative:archiveInitiative,saveProject:saveProject,saveUser:saveUser,updateUser:updateUser,updateUserStatus:updateUserStatus,saveDepartment:saveDepartment,saveYear:saveYear,
-    loadPhase3History:loadPhase3History,saveBenefitMeasurement:saveBenefitMeasurement,saveCbaReview:saveCbaReview,saveFinanceUpdate:saveFinanceUpdate,saveContinuityLink:saveContinuityLink,saveDecisionReadinessAssessment:saveDecisionReadinessAssessment,resetDemo:resetDemo
+    loadPhase3History:loadPhase3History,saveBenefitMeasurement:saveBenefitMeasurement,saveCbaReview:saveCbaReview,saveFinanceUpdate:saveFinanceUpdate,saveContinuityLink:saveContinuityLink,saveDecisionReadinessAssessment:saveDecisionReadinessAssessment,deleteAllAuditLogs:deleteAllAuditLogs,resetDemo:resetDemo
   };
 })();
