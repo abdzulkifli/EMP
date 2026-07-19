@@ -465,7 +465,7 @@
     const canEdit=!['AUDITOR'].includes(state.user.role);let items=scopedInitiatives();const q=state.filters.search.toLowerCase();if(q)items=items.filter(i=>[i.code,i.title,i.owner,departmentName(i.departmentId)].join(' ').toLowerCase().includes(q));if(state.filters.status!=='all')items=items.filter(i=>i.status===state.filters.status);
     return pageHeader('Annual AMP register','Initiatives','Manage permanent initiatives and their annual planning cycles, owners, classifications and official budgets.',`${canEdit?'<button class="btn outline compact" data-action="import-initiatives">Import CSV</button><button class="btn primary compact" data-action="new-initiative">＋ Create Initiative</button>':''}`)+
       `<div class="toolbar"><div class="toolbar-group"><input data-filter="search" placeholder="Search initiative, code or owner" value="${escapeAttr(state.filters.search)}"><select data-filter="year">${yearOptions(state.filters.year)}</select><select data-filter="department">${departmentOptions(state.filters.department,true)}</select><select data-filter="status"><option value="all">All statuses</option>${['DRAFT','SUBMITTED','UNDER_REVIEW','APPROVED','RETURNED','REJECTED','COMPLETED'].map(s=>`<option value="${s}" ${state.filters.status===s?'selected':''}>${pretty(s)}</option>`).join('')}</select></div><div class="toolbar-group"><button class="btn outline compact" data-action="export-initiatives">Export CSV</button></div></div>`+
-      `<section class="card table-card"><div class="table-header"><strong>Enterprise Initiative Register</strong><span class="muted">${items.length} records</span></div><div class="table-wrap"><table><thead><tr><th>Initiative</th><th>Owner</th><th>Department</th><th>Classification</th><th>Status</th><th class="amount">Approved Budget</th><th>Progress</th><th>Actions</th></tr></thead><tbody>${items.length?items.map(i=>`<tr><td><strong>${escapeHtml(i.title)}</strong><br><span class="muted">${escapeHtml(i.code)}</span></td><td>${escapeHtml(i.owner||'Unassigned')}</td><td>${escapeHtml(departmentName(i.departmentId))}</td><td>${statusBadge(i.classification)}</td><td>${statusBadge(i.status)}</td><td class="amount">${money(i.approvedBudget)}</td><td><div class="progress-cell"><div class="bar-track"><div class="bar-fill" style="width:${Number(i.progress||0)}%"></div></div>${Number(i.progress||0)}%</div></td><td><div class="row-actions"><button class="action-button" data-action="view-initiative" data-id="${i.id}">View</button>${canEdit?`<button class="action-button" data-action="edit-initiative" data-id="${i.id}">Edit</button><button class="action-button" data-action="archive-initiative" data-id="${i.id}">Archive</button>`:''}</div></td></tr>`).join(''):'<tr><td colspan="8"><div class="empty-state"><strong>No initiatives found</strong>Adjust the filters or create a new initiative.</div></td></tr>'}</tbody></table></div></section>`;
+      `<section class="card table-card"><div class="table-header"><strong>Enterprise Initiative Register</strong><span class="muted">${items.length} records</span></div><div class="table-wrap"><table><thead><tr><th>Initiative</th><th>Owner</th><th>Department</th><th>Classification</th><th>Status</th><th class="amount">Approved Budget</th><th>Progress</th><th>Actions</th></tr></thead><tbody>${items.length?items.map(i=>`<tr><td><strong>${escapeHtml(i.title)}</strong><br><span class="muted">${escapeHtml(i.code)}</span></td><td>${escapeHtml(i.owner||'Unassigned')}</td><td>${escapeHtml(departmentName(i.departmentId))}</td><td>${statusBadge(i.classification)}</td><td>${statusBadge(i.status)}</td><td class="amount">${money(i.approvedBudget)}</td><td><div class="progress-cell"><div class="bar-track"><div class="bar-fill" style="width:${Number(i.progress||0)}%"></div></div>${Number(i.progress||0)}%</div></td><td><div class="row-actions"><button class="action-button" data-action="view-initiative" data-id="${i.id}">View</button>${canEdit?`<button class="action-button" data-action="edit-initiative" data-id="${i.id}">Edit</button><button class="action-button" data-action="archive-initiative" data-id="${i.id}">Archive</button>${state.user.role==='SUPER_ADMIN'?`<button class="action-button delete-action" data-action="delete-initiative" data-id="${i.id}">Delete</button>`:''}`:''}</div></td></tr>`).join(''):'<tr><td colspan="8"><div class="empty-state"><strong>No initiatives found</strong>Adjust the filters or create a new initiative.</div></td></tr>'}</tbody></table></div></section>`;
   }
 
   function governanceInitiatives(){
@@ -617,6 +617,7 @@
       else if(action==='view-initiative')openInitiativeView(state.data.initiatives.find(i=>i.id===id));
       else if(action==='manage-phase3')await openPhase3Modal(state.data.initiatives.find(i=>i.id===id),button.dataset.tab||'benefits');
       else if(action==='archive-initiative')await archiveInitiative(id);
+      else if(action==='delete-initiative')await deleteInitiative(id);
       else if(action==='new-project')openProjectModal();
       else if(action==='edit-project')openProjectModal(state.data.projects.find(p=>p.id===id));
       else if(action==='view-project')openProjectView(state.data.projects.find(p=>p.id===id));
@@ -854,6 +855,17 @@ This will also delete them from the database and cannot be undone. Export the CS
   }
 
   async function archiveInitiative(id){const item=state.data.initiatives.find(i=>i.id===id);if(!item)return;if(!confirm('Archive “'+item.title+'”? The record will remain in audit history.'))return;await api.archiveInitiative(id,state.user,item.cycleId);await refreshData();toast('Initiative archived.','success');}
+  async function deleteInitiative(id){
+    if(state.user.role!=='SUPER_ADMIN'){toast('Only the Super Administrator can permanently delete an initiative.','error');return;}
+    const item=state.data.initiatives.find(i=>i.id===id);if(!item)return;
+    const linkedProjects=(state.data.projects||[]).filter(p=>p.initiativeId===id).length;
+    const message='Permanently delete “'+item.title+'” ('+(item.code||'no code')+')?'+(linkedProjects?' This will also remove '+linkedProjects+' linked project record'+(linkedProjects===1?'':'s')+' and related governance data.':' This will also remove related governance data.')+'\n\nType DELETE to continue.';
+    const confirmation=prompt(message,'');
+    if(confirmation!=='DELETE'){if(confirmation!==null)toast('Deletion cancelled. Type DELETE exactly to confirm.','error');return;}
+    await api.deleteInitiative(id,state.user,item.cycleId);
+    await refreshData();
+    toast('Initiative permanently deleted.','success');
+  }
 
   function todayIso(){return new Date().toISOString().slice(0,10);}
   function phase3TabButton(tab,label,active){return `<button type="button" class="${active===tab?'active':''}" data-phase3-tab="${tab}">${label}</button>`;}
@@ -1052,7 +1064,12 @@ This will also delete them from the database and cannot be undone. Export the CS
       if(titleConflicts.length)throw new Error(`${titleConflicts.length} row${titleConflicts.length===1?'':'s'} became duplicate after validation. Re-select the file to refresh the preview.`);
       rows.forEach((r,index)=>{if(currentCodes.has(normaliseKey(r.record.code))){const dept=state.data.departments.find(d=>d.id===r.record.departmentId);r.record.code=generateInitiativeCode(r.record.year,dept?.code||'GEN',currentCodes,index+1);}});
       let imported=0;button.textContent=`Importing 0 of ${rows.length}…`;
-      for(const row of rows){await api.saveInitiative(row.record,state.user,{defaultPortfolioId:state.data.portfolios?.[0]?.id,defaultStrategicPillarId:state.data.strategicPillars?.[0]?.id});imported++;button.textContent=`Importing ${imported} of ${rows.length}…`;}
+      for(const row of rows){
+        const dept=state.data.departments.find(d=>d.id===row.record.departmentId);
+        if(!row.record.code||isYearOnlyInitiativeCode(row.record.code,row.record.year)){row.record.code=generateInitiativeCode(row.record.year,dept?.code||'GEN',currentCodes,imported+1);}
+        await api.saveInitiative(row.record,state.user,{defaultPortfolioId:state.data.portfolios?.[0]?.id,defaultStrategicPillarId:state.data.strategicPillars?.[0]?.id,departmentCode:dept?.code||'GEN'});
+        imported++;button.textContent=`Importing ${imported} of ${rows.length}…`;
+      }
       closeModal();await refreshData();toast(`${imported} initiative${imported===1?'':'s'} imported successfully.`,'success');
     }catch(error){button.disabled=false;button.textContent=`Import ${rows.length} Valid Row${rows.length===1?'':'s'}`;toast(error.message||'Import failed.','error');}
   }

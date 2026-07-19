@@ -405,17 +405,24 @@
     };
   }
 
-  function validateInitiativeCodeForSave(record){
+  function generateFallbackInitiativeCode(record,context){
+    var year=Number(record&&record.year),yy=String(year).slice(-2);
+    var dept=String((context&&context.departmentCode)||record.departmentCode||'GEN').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,10)||'GEN';
+    var serial=String(Date.now()).slice(-4)+String(Math.floor(Math.random()*100)).padStart(2,'0');
+    return 'AMP'+yy+'-'+dept+'-'+serial;
+  }
+
+  function validateInitiativeCodeForSave(record,context){
     var code=String(record&&record.code||'').trim().toUpperCase(),year=Number(record&&record.year);
-    if(!code) throw new Error('Initiative code is required before saving.');
+    if(!code) code=generateFallbackInitiativeCode(record,context);
     var compact=code.replace(/[^A-Z0-9]/g,'');
-    if(compact===String(year)||compact==='AMP'+String(year)||compact==='AMP'+String(year).slice(-2)) throw new Error('Initiative code cannot be only the AMP year.');
+    if(compact===String(year)||compact==='AMP'+String(year)||compact==='AMP'+String(year).slice(-2)) code=generateFallbackInitiativeCode(record,context);
     if(!/^AMP\d{2}-[A-Z0-9]{2,10}-\d{6}$/.test(code)) throw new Error('Initiative code must follow the HOME31 format AMPYY-DEPARTMENT-######.');
     record.code=code;
   }
 
   async function saveInitiative(record,user,context){
-    validateInitiativeCodeForSave(record);
+    validateInitiativeCodeForSave(record,context);
     if(!isLive()){
       var db = getDemoDb();
       var existing = record.id && db.initiatives.find(function(i){return i.id===record.id;});
@@ -464,6 +471,35 @@
       item.archived=true; demoAudit(db,user,'ARCHIVE','Initiative','Archived '+item.title+'.'); saveDemoDb(db); return true;
     }
     await request('/rest/v1/rpc/archive_initiative_cycle',{method:'POST',body:JSON.stringify({p_cycle_id:cycleId})}); return true;
+  }
+
+  async function deleteInitiative(id,user,cycleId){
+    if(!user||user.role!=='SUPER_ADMIN') throw new Error('Only the Super Administrator can permanently delete an initiative.');
+    if(!isLive()){
+      var db=ensureDemoPhase3(getDemoDb()),item=db.initiatives.find(function(i){return i.id===id;});
+      if(!item) throw new Error('Initiative was not found.');
+      var projectIds=(db.projects||[]).filter(function(p){return p.initiativeId===id;}).map(function(p){return p.id;});
+      db.milestones=(db.milestones||[]).filter(function(x){return projectIds.indexOf(x.projectId)<0;});
+      db.risks=(db.risks||[]).filter(function(x){return projectIds.indexOf(x.projectId)<0;});
+      db.projects=(db.projects||[]).filter(function(p){return p.initiativeId!==id;});
+      var cid=cycleId||item.cycleId||item.id;
+      db.benefitMeasurements=(db.benefitMeasurements||[]).filter(function(x){return x.initiativeCycleId!==cid;});
+      db.cbaReviews=(db.cbaReviews||[]).filter(function(x){return x.initiativeCycleId!==cid;});
+      db.financeUpdates=(db.financeUpdates||[]).filter(function(x){return x.initiativeCycleId!==cid;});
+      db.decisionReadinessAssessments=(db.decisionReadinessAssessments||[]).filter(function(x){return x.initiativeCycleId!==cid;});
+      db.continuityLinks=(db.continuityLinks||[]).filter(function(x){return x.previousCycleId!==cid&&x.currentCycleId!==cid;});
+      db.initiatives=db.initiatives.filter(function(i){return i.id!==id;});
+      demoAudit(db,user,'DELETE','Initiative','Permanently deleted '+item.title+' ('+(item.code||'no code')+').');
+      saveDemoDb(db);return true;
+    }
+    try{
+      await request('/rest/v1/rpc/delete_initiative_record',{method:'POST',body:JSON.stringify({p_initiative_id:id,p_cycle_id:cycleId||null})});
+      return true;
+    }catch(error){
+      var message=String(error&&error.message||'');
+      if(/could not find the function|PGRST202|404/i.test(message)) throw new Error('Permanent initiative deletion is not installed in Supabase. Run migration 006_delete_initiative_record.sql, then try again.');
+      throw error;
+    }
   }
 
   async function saveProject(record,user,context){
@@ -621,7 +657,7 @@
 
   window.HOME31_API={
     config:config,isLive:isLive,roleLabel:roleLabel,signIn:signIn,signOut:signOut,getCurrentUser:getCurrentUser,changePassword:changePassword,loadData:loadData,
-    saveInitiative:saveInitiative,archiveInitiative:archiveInitiative,saveProject:saveProject,saveUser:saveUser,updateUser:updateUser,updateUserStatus:updateUserStatus,saveDepartment:saveDepartment,saveYear:saveYear,
+    saveInitiative:saveInitiative,archiveInitiative:archiveInitiative,deleteInitiative:deleteInitiative,saveProject:saveProject,saveUser:saveUser,updateUser:updateUser,updateUserStatus:updateUserStatus,saveDepartment:saveDepartment,saveYear:saveYear,
     loadPhase3History:loadPhase3History,saveBenefitMeasurement:saveBenefitMeasurement,saveCbaReview:saveCbaReview,saveFinanceUpdate:saveFinanceUpdate,saveContinuityLink:saveContinuityLink,saveDecisionReadinessAssessment:saveDecisionReadinessAssessment,deleteAllAuditLogs:deleteAllAuditLogs,resetDemo:resetDemo
   };
 })();
