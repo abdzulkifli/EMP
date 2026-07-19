@@ -43,9 +43,26 @@
     });
     el.quickAdd.addEventListener('click',quickAdd);
     el.mobileMenu.addEventListener('click',()=>el.mainNav.classList.toggle('open'));
-    el.modalClose.addEventListener('click',closeModal);
-    el.modalLayer.addEventListener('click',event=>{ if(event.target===el.modalLayer) closeModal(); });
-    document.addEventListener('keydown',event=>{ if(event.key==='Escape') closeModal(); });
+    el.modalClose.addEventListener('click',()=>closeModal(false,'close-button'));
+    el.modalLayer.addEventListener('click',event=>{
+      if(event.target!==el.modalLayer)return;
+      if(el.modalContent.querySelector('#initiative-form')){
+        const status=document.getElementById('initiative-draft-status');
+        if(status)status.textContent='Form protected. Use the ✕ button to close this initiative form.';
+        return;
+      }
+      closeModal(false,'backdrop');
+    });
+    document.addEventListener('keydown',event=>{
+      if(event.key!=='Escape')return;
+      if(el.modalContent.querySelector('#initiative-form')){
+        event.preventDefault();
+        const status=document.getElementById('initiative-draft-status');
+        if(status)status.textContent='Escape is disabled for this form. Use the ✕ button to close.';
+        return;
+      }
+      closeModal(false,'escape');
+    });
     el.mainNav.addEventListener('click',event=>{ const button=event.target.closest('[data-route]'); if(button) navigate(button.dataset.route); });
     el.pageRoot.addEventListener('click',handlePageClick);
     el.pageRoot.addEventListener('change',handlePageChange);
@@ -722,10 +739,12 @@ This will also delete them from the database and cannot be undone. Export the CS
     el.modalLayer.querySelector('.modal-card').className='modal-card';
     el.modalTitle.textContent=title;el.modalEyebrow.textContent=eyebrow||'HOME31';el.modalContent.innerHTML=html;el.modalLayer.classList.remove('hidden');setTimeout(()=>el.modalContent.querySelector('input,select,textarea,button')?.focus(),30);
   }
-  function closeModal(force){
+  function closeModal(force,source){
+    const forced=force===true;
     const initiativeForm=el.modalContent.querySelector('#initiative-form');
-    if(!force && initiativeForm && initiativeForm.dataset.dirty==='true'){
-      if(!confirm('You have unsaved initiative changes. Close the form and keep the protected local draft?')) return;
+    if(initiativeForm && !forced && source!=='close-button')return;
+    if(!forced && initiativeForm && initiativeForm.dataset.dirty==='true'){
+      if(!confirm('Close the initiative form? Your protected local draft will remain available on this device.')) return;
     }
     el.modalLayer.classList.add('hidden');el.modalContent.innerHTML='';
   }
@@ -853,7 +872,7 @@ This will also delete them from the database and cannot be undone. Export the CS
         ${[['evidence-problem','evidenceProblem','Problem / demand evidence *'],['evidence-baseline','evidenceBaseline','Baseline validated *'],['evidence-business-case','evidenceBusinessCase','Business case / concept paper'],['evidence-financial','evidenceFinancial','Financial assessment / CBA'],['evidence-risk','evidenceRisk','Risk assessment'],['evidence-implementation','evidenceImplementation','Implementation / milestone plan'],['evidence-hr','evidenceHr','HR / workforce impact assessment'],['evidence-ict','evidenceIct','ICT assessment / architecture input'],['evidence-stakeholder','evidenceStakeholder','Stakeholder endorsement / consultation'],['evidence-challenge','evidenceChallenge','Challenge-session / decision evidence']].map(([id,name,label],index)=>`<label class="evidence-item"><span>${label}</span><select id="${id}" name="${name}" ${index<2?'required':''}>${formOptions(evidenceOptions,d[name])}</select></label>`).join('')}
         </div><div class="form-grid evidence-notes"><label class="field span-2"><span>Evidence reference, repository link or document location</span><textarea id="initiative-evidence-reference" name="evidenceReference">${escapeHtml(d.evidenceReference)}</textarea></label><label class="field span-2"><span>Evidence gaps and planned closure actions</span><textarea id="initiative-evidence-notes" name="evidenceNotes">${escapeHtml(d.evidenceNotes)}</textarea></label></div></section>
       <section class="initiative-form-step" data-step-panel="7"><div class="form-section-heading"><span class="eyebrow">Step 7</span><h3>Management Review Summary</h3><p>Review ownership, HOME31 alignment, ICT, value, finance, HR and evidence before saving.</p></div><div id="initiative-review-summary" class="review-summary"></div><label class="declaration"><input id="initiative-declaration" name="declaration" type="checkbox" required ${d.declaration?'checked':''}><span>I confirm that the ownership, financial figures, ICT and HR assessments, value target and evidence status recorded here are accurate to the best of my knowledge.</span></label></section>
-      <div class="modal-actions form-navigation"><button id="initiative-previous-step" class="btn secondary hidden" type="button">Previous</button><span id="initiative-current-step-label" class="initiative-current-step">Step 1 of 7 · Profile</span><span class="navigation-spacer"></span><button id="cancel-initiative-modal" class="btn outline" type="button">Save Draft & Close</button><button id="initiative-next-step" class="btn secondary" type="button">Next</button><button id="save-initiative-button" class="btn primary hidden" type="submit">Save Initiative</button></div>
+      <div class="modal-actions form-navigation"><button id="initiative-previous-step" class="btn secondary hidden" type="button">Previous</button><span id="initiative-current-step-label" class="initiative-current-step">Step 1 of 7 · Profile</span><span class="navigation-spacer"></span><button id="cancel-initiative-modal" class="btn outline" type="button">Save Draft</button><button id="initiative-next-step" class="btn secondary" type="button">Next</button><button id="save-initiative-button" class="btn primary hidden" type="submit">Save Initiative</button></div>
     </form>`);
     el.modalLayer.querySelector('.modal-card').classList.add('comprehensive-modal');
     const form=document.getElementById('initiative-form'),key=draftKey(item);let autosaveTimer;
@@ -862,7 +881,7 @@ This will also delete them from the database and cannot be undone. Export the CS
     if(saved?.data){const recovery=document.getElementById('initiative-draft-recovery');recovery.classList.remove('hidden');recovery.innerHTML=`<strong>Unfinished draft found.</strong> Saved ${formatDateTime(saved.savedAt)}. <button id="restore-initiative-draft" class="action-button" type="button">Restore</button> <button id="discard-initiative-draft" class="action-button" type="button">Discard</button>`;document.getElementById('restore-initiative-draft').onclick=()=>{applyInitiativeFormData(form,saved.data);form.dataset.dirty='true';recovery.classList.add('hidden');updateInitiativeFormSummary(form);};document.getElementById('discard-initiative-draft').onclick=()=>{localStorage.removeItem(key);recovery.classList.add('hidden');};}
     form.addEventListener('input',()=>{form.dataset.dirty='true';clearTimeout(autosaveTimer);autosaveTimer=setTimeout(saveDraft,500);updateInitiativeFormSummary(form);});form.addEventListener('change',()=>{form.dataset.dirty='true';clearTimeout(autosaveTimer);autosaveTimer=setTimeout(saveDraft,250);updateInitiativeFormSummary(form);});
     form.querySelectorAll('[data-form-step]').forEach(button=>button.addEventListener('click',()=>setInitiativeStep(form,Number(button.dataset.formStep),Number(button.dataset.formStep)>Number(form.dataset.step))));
-    document.getElementById('initiative-previous-step').onclick=()=>setInitiativeStep(form,Number(form.dataset.step)-1,false);document.getElementById('initiative-next-step').onclick=()=>setInitiativeStep(form,Number(form.dataset.step)+1,true);document.getElementById('initiative-save-draft').onclick=()=>{saveDraft();toast('Initiative draft protected on this device.','success');};document.getElementById('initiative-clear-draft').onclick=()=>{localStorage.removeItem(key);toast('Saved local draft discarded.','success');};document.getElementById('cancel-initiative-modal').onclick=()=>{saveDraft();form.dataset.dirty='false';closeModal(true);};
+    document.getElementById('initiative-previous-step').onclick=()=>setInitiativeStep(form,Number(form.dataset.step)-1,false);document.getElementById('initiative-next-step').onclick=()=>setInitiativeStep(form,Number(form.dataset.step)+1,true);document.getElementById('initiative-save-draft').onclick=()=>{saveDraft();toast('Initiative draft protected on this device.','success');};document.getElementById('initiative-clear-draft').onclick=()=>{localStorage.removeItem(key);toast('Saved local draft discarded.','success');};document.getElementById('cancel-initiative-modal').onclick=()=>{saveDraft();toast('Initiative draft protected. The form will remain open until you click ✕.','success');};
     updateInitiativeFormSummary(form);
     form.addEventListener('submit',async event=>{
       event.preventDefault();if(!form.reportValidity())return;const f=collectInitiativeForm(form);
@@ -1050,7 +1069,7 @@ This will also delete them from the database and cannot be undone. Export the CS
   function openDepartmentModal(item){item=item||{code:'',name:'',active:true};openModal(item.id?'Edit Department':'Create Department','Organisation',`<form id="department-form"><div class="form-grid"><label class="field"><span>Department code</span><input name="code" required value="${escapeAttr(item.code)}"></label><label class="field"><span>Department name</span><input name="name" required value="${escapeAttr(item.name)}"></label><label class="checkbox span-2"><input name="active" type="checkbox" ${item.active!==false?'checked':''}> Active department</label></div><div class="modal-actions"><button type="button" class="btn secondary" data-modal-close>Cancel</button><button class="btn primary" type="submit">Save Department</button></div></form>`);bindModalClose();document.getElementById('department-form').addEventListener('submit',async event=>{event.preventDefault();const f=formObject(event.target);await withSubmit(event.target,()=>api.saveDepartment(Object.assign({},item,{code:f.code.trim().toUpperCase(),name:f.name.trim(),active:event.target.elements.active.checked}),state.user));closeModal();await refreshData();toast('Department saved.','success');});}
   function openYearModal(item){item=item||{year:new Date().getFullYear()+1,label:'',active:false};openModal(item.id?'Edit Reporting Year':'Create Reporting Year','Annual Planning',`<form id="year-form"><div class="form-grid"><label class="field"><span>Year</span><input name="year" type="number" min="2020" max="2100" required value="${item.year}"></label><label class="field"><span>Label</span><input name="label" required value="${escapeAttr(item.label||('AMP '+item.year))}"></label><label class="checkbox span-2"><input name="active" type="checkbox" ${item.active?'checked':''}> Set as active planning year</label></div><div class="modal-actions"><button type="button" class="btn secondary" data-modal-close>Cancel</button><button class="btn primary" type="submit">Save Year</button></div></form>`);bindModalClose();document.getElementById('year-form').addEventListener('submit',async event=>{event.preventDefault();const f=formObject(event.target);await withSubmit(event.target,()=>api.saveYear(Object.assign({},item,{year:Number(f.year),label:f.label.trim(),active:event.target.elements.active.checked}),state.user));closeModal();await refreshData();toast('Reporting year saved.','success');});}
   function openPasswordModal(forced){openModal(forced?'Set a new password':'Change Password',forced?'First Login Security':'Account Security',`<form id="password-form"><div class="alert ${forced?'info':'success'}">${forced?'You must replace the temporary password before using HOME31.':'Use a strong password with at least 10 characters.'}</div><label class="field"><span>New password</span><input name="password" type="password" minlength="10" required autocomplete="new-password"></label><label class="field"><span>Confirm password</span><input name="confirm" type="password" minlength="10" required autocomplete="new-password"></label><div class="modal-actions">${forced?'':'<button type="button" class="btn secondary" data-modal-close>Cancel</button>'}<button class="btn primary" type="submit">Update Password</button></div></form>`);if(!forced)bindModalClose();else el.modalClose.classList.add('hidden');document.getElementById('password-form').addEventListener('submit',async event=>{event.preventDefault();const f=formObject(event.target);if(f.password!==f.confirm)throw new Error('The passwords do not match.');state.user=await withSubmit(event.target,()=>api.changePassword(state.user,f.password));el.modalClose.classList.remove('hidden');closeModal();el.userRole.textContent=state.user.roleLabel;toast('Password updated.','success');});}
-  function bindModalClose(){el.modalClose.classList.remove('hidden');el.modalContent.querySelectorAll('[data-modal-close]').forEach(b=>b.addEventListener('click',closeModal));}
+  function bindModalClose(){el.modalClose.classList.remove('hidden');el.modalContent.querySelectorAll('[data-modal-close]').forEach(b=>b.addEventListener('click',()=>closeModal(false,'action-button')));}
   async function withSubmit(form,fn){const button=form.querySelector('button[type="submit"]'),old=button?.textContent;if(button){button.disabled=true;button.textContent='Saving…';}try{return await fn();}catch(error){toast(error.message||'Unable to save.','error');throw error;}finally{if(button){button.disabled=false;button.textContent=old;}}}
   function formObject(form){return Object.fromEntries(new FormData(form).entries());}
 
