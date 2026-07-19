@@ -139,3 +139,144 @@
 
 /* HOME31 V8.1 — Super Administrator temporary-password reset */
 .admin-account-actions{display:flex;gap:8px;flex-wrap:wrap}.password-reset-input-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.password-reset-force{margin:14px 0;padding:12px 13px;border:1px solid #c8dfd8;border-radius:11px;background:#eff9f5;color:#375b4e;font-size:10px;font-weight:750}.password-reset-user-summary{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:13px}.password-reset-user-summary>div{padding:12px;border:1px solid var(--line);border-radius:10px;background:#f8fafb}.password-reset-user-summary small,.password-reset-user-summary strong{display:block}.password-reset-user-summary small{color:var(--muted);font-size:8px;text-transform:uppercase;font-weight:850}.password-reset-user-summary strong{margin-top:5px;font-size:10px;word-break:break-word}@media(max-width:620px){.password-reset-input-row,.password-reset-user-summary{grid-template-columns:1fr}.password-reset-input-row .btn{width:100%}}
+
+/* HOME31 V8.3 — Executive typography and readability refinement */
+:root{
+  --type-xs:12px;
+  --type-sm:13px;
+  --type-base:14px;
+  --type-md:16px;
+  --type-lg:20px;
+  --type-xl:28px;
+}
+
+/* Global reading comfort */
+body{font-size:var(--type-base);line-height:1.5;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font-size:var(--type-base)}
+.page-root{padding-top:30px}
+.page-title h1{font-size:clamp(28px,2.2vw,34px);line-height:1.12}
+.page-title p{font-size:14px;line-height:1.6}
+.eyebrow{font-size:11px;letter-spacing:.12em}
+
+/* Navigation and signed-in identity */
+.main-nav button{font-size:13px;font-weight:800;padding-inline:13px}
+.user-chip strong{font-size:13px;line-height:1.2}
+.user-chip small{font-size:11px;line-height:1.25}
+.dropdown button{font-size:13px}
+.footer{font-size:12px}
+
+/* Forms and filters */
+.field{gap:8px;margin-bottom:16px}
+.field>span,.field label{font-size:13px;line-height:1.35;font-weight:800}
+.field input,.field select,.field textarea,.toolbar input,.toolbar select{min-height:42px;padding:11px 13px;font-size:14px;line-height:1.35}
+.field textarea{line-height:1.55}
+.field small{font-size:12px;line-height:1.5}
+.toolbar{gap:12px;margin-bottom:18px}
+.toolbar-group{gap:10px}
+.checkbox,.initiative-checkbox span,.declaration span{font-size:13px;line-height:1.5}
+
+/* Page, panel and card hierarchy */
+.panel{padding:20px}
+.panel-header{margin-bottom:18px}
+.panel-header h2{font-size:17px;line-height:1.3}
+.panel-header p{font-size:13px;line-height:1.5}
+.table-header{padding:17px 18px}
+.table-header strong{font-size:15px}
+.card{box-shadow:0 8px 26px rgba(11,37,56,.055)}
+
+/* Executive KPI cards */
+.kpi-card{min-height:142px;padding:19px}
+.kpi-label{font-size:12px;line-height:1.3;letter-spacing:.055em}
+.kpi-value{font-size:clamp(27px,2vw,33px);line-height:1.08}
+.kpi-meta{font-size:13px;line-height:1.45}
+.command-kpi .command-kpi-label,.command-kpi small{font-size:12px;line-height:1.4}
+.command-kpi strong{line-height:1.08}
+
+/* Tables: readable without losing enterprise density */
+table{font-variant-numeric:tabular-nums}
+th,td{padding:14px 15px;font-size:13.5px;line-height:1.45}
+th{font-size:11px;line-height:1.3;letter-spacing:.055em;font-weight:850}
+td strong{font-size:13.5px;line-height:1.35}
+td .muted,td small,.record-meta,.table-meta{font-size:12px;line-height:1.45;color:#5f6f80}
+.action-button{padding:8px 10px;font-size:12px;line-height:1.2}
+.badge{padding:5px 9px;font-size:11px;line-height:1.2}
+.executive-attention-table tbody td,.executive-delivery-register tbody td{vertical-align:top}
+.executive-delivery-register td:nth-child(2){min-width:230px}
+.executive-delivery-register td:nth-child(3){min-width:135px}
+.executive-delivery-register td:nth-child(4){min-width:210px}
+.executive-delivery-register td:nth-child(9){min-width:220px}
+.executive-attention-table td:nth-child(2){min-width:240px}
+.executive-attention-table td:nth-child(3){min-width:260px}
+.table-wrap{scrollbar-gutter:stable}
+
+/* Charts, insights and interpretation */
+.chart-summary{padding:13px 14px;margin-top:16px}
+.chart-summary span{font-size:11px;line-height:1.3}
+.chart-summary p{font-size:13px;line-height:1.6;color:#495e72}
+.executive-chart-legend span{font-size:12px;line-height:1.35}
+.executive-chart-legend strong{font-size:14px}
+.investment-row{grid-template-columns:110px 1fr 95px}
+.investment-row>span{font-size:12px;line-height:1.3}
+.investment-row>strong{font-size:13px}
+.quadrant-label{font-size:11px}
+.quarter-column strong{font-size:12px}
+.quarter-column small{font-size:11px}
+.quarter-legend{font-size:12px;line-height:1.4}
+.budget-line{font-size:13px}
+.summary-strip small{font-size:12px;line-height:1.35}
+.summary-strip strong{font-size:22px}
+
+/* Governance, quality and compact metric cards */
+.governance-summary-grid strong{font-size:13px;line-height:1.35}
+.governance-summary-grid small{font-size:12px;line-height:1.45}
+.mini-ring span{font-size:11px}
+.quality-action span{min-height:34px;font-size:11px;line-height:1.3}
+.quality-action strong{font-size:18px}
+.dashboard-active-filter span{font-size:11px}
+.dashboard-active-filter strong{font-size:14px}
+.dashboard-active-filter small{font-size:12px;line-height:1.45}
+.status-item strong,.activity-item strong{font-size:13px}
+.status-item small,.activity-item small{font-size:12px;line-height:1.5}
+
+/* Comprehensive initiative form */
+.initiative-draft-bar strong{font-size:13px}
+.initiative-draft-bar span{font-size:12px;line-height:1.4}
+.initiative-stepper button{min-height:58px;font-size:12px;line-height:1.25}
+.initiative-stepper button span{font-size:12px}
+.form-completion>div:first-child{font-size:13px}
+.form-section-heading h3{font-size:19px;line-height:1.3}
+.form-section-heading p{font-size:13px;line-height:1.55}
+.initiative-checkbox span{font-size:13px}
+.budget-summary small{font-size:12px}
+.budget-summary strong{font-size:15px}
+.evidence-summary>div:first-child{font-size:13px}
+.evidence-item span{font-size:13px;line-height:1.4}
+.review-grid small,.review-grid span{font-size:12px;line-height:1.4}
+.review-grid strong{font-size:14px}
+.initiative-current-step{font-size:12px}
+.delivery-scope-note{font-size:13px;line-height:1.5}
+.delivery-scope-note strong{font-size:14px}
+
+/* Dialogs, alerts and password reset */
+.modal-header h2{font-size:20px}
+.modal-content{font-size:14px}
+.alert,.toast{font-size:13px;line-height:1.5}
+.password-reset-force{font-size:13px;line-height:1.45}
+.password-reset-user-summary small{font-size:11px}
+.password-reset-user-summary strong{font-size:13px}
+
+/* Accessible hover information */
+.has-tooltip:after{font-size:12px;line-height:1.45;max-width:310px}
+
+@media(max-width:980px){
+  .main-nav button{font-size:14px}
+  th,td{font-size:13px}
+  th{font-size:11px}
+}
+@media(max-width:620px){
+  body{font-size:14px}
+  .page-title h1{font-size:27px}
+  .kpi-meta{font-size:12px}
+  th,td{padding:12px 11px}
+  .panel{padding:16px}
+}
