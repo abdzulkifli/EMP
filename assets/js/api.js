@@ -242,7 +242,7 @@
   }
 
   function applyDemoScope(data,user){
-    var elevated = ['SUPER_ADMIN','ADMIN','AUDITOR','FINANCE_REVIEWER'].indexOf(user.role) >= 0;
+    var elevated = ['SUPER_ADMIN','ADMIN','PORTFOLIO_ADMIN','AUDITOR','FINANCE_REVIEWER'].indexOf(user.role) >= 0;
     if(elevated) return data;
     var scoped = clone(data);
     scoped.initiatives = scoped.initiatives.filter(function(i){return i.departmentId===user.departmentId;});
@@ -379,7 +379,7 @@
       ownerId:p.project_manager_id,owner:p.project_manager_name||'Unassigned',startDate:p.planned_start_date,targetDate:p.planned_end_date,
       progress:Number(p.progress_percentage||0),budget:0,spent:0,description:'',milestoneCount:p.milestone_count,openRisks:p.open_risks
     };});
-    return {
+    var liveData = {
       version:3,
       departments:results[0].map(function(d){return{id:d.id,code:d.code,name:d.name,active:d.status==='ACTIVE'};}),
       reportingYears:results[1].map(function(y){return{id:y.id,year:y.year,label:y.display_name,active:y.is_active};}),
@@ -403,6 +403,7 @@
         readinessError:results[10].error||results[11].error||null
       }
     };
+    return applyDemoScope(liveData,user);
   }
 
   function generateFallbackInitiativeCode(record,context){

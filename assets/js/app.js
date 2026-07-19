@@ -94,6 +94,7 @@
     state.data=await loadWithSpinner();
     if(!state.data)return;
     state.filters.year=resolveInitialPortfolioYear(state.data);
+    state.filters.department=isDepartmentRestrictedUser()?state.user.departmentId:'all';
     state.dashboardYear='all';
     state.compareTo=state.filters.year;state.compareFrom=state.filters.year-1;
     renderNav();
@@ -110,7 +111,13 @@
       return null;
     }
   }
-  async function refreshData(){ state.data=await api.loadData(state.user);render(); }
+  async function refreshData(){
+    const current=await api.getCurrentUser();
+    if(current){state.user=current;el.userName.textContent=current.name;el.userRole.textContent=current.roleLabel;}
+    state.data=await api.loadData(state.user);
+    if(isDepartmentRestrictedUser())state.filters.department=state.user.departmentId;
+    render();
+  }
   function allowedRoute(route){
     if(route==='profile')return !!state.user;
     const item=navItems.find(n=>n.id===route);
@@ -137,7 +144,14 @@
     const years=[...new Set([...(state.data.reportingYears||[]).map(y=>Number(y.year)),...(state.data.initiatives||[]).map(i=>Number(i.year)),...(state.data.projects||[]).map(p=>Number(p.year))].filter(Number.isFinite))].sort((a,b)=>b-a);
     return years.map(year=>`<option value="${year}" ${Number(selected)===year?'selected':''}>${escapeHtml(labels.get(year)||('AMP '+year))}</option>`).join('');
   }
-  function departmentOptions(selected,includeAll){return `${includeAll?'<option value="all">All departments</option>':''}${state.data.departments.filter(d=>d.active!==false).map(d=>`<option value="${d.id}" ${selected===d.id?'selected':''}>${escapeHtml(d.name)}</option>`).join('')}`;}
+  function isDepartmentRestrictedUser(){return !!state.user&&['END_USER','DEPARTMENT_ADMIN','DEPARTMENT_HEAD'].includes(state.user.role);}
+  function departmentOptions(selected,includeAll){
+    if(isDepartmentRestrictedUser()){
+      const own=state.data.departments.find(d=>d.id===state.user.departmentId);
+      return own?`<option value="${own.id}" selected>${escapeHtml(own.name)}</option>`:'<option value="">Department not assigned</option>';
+    }
+    return `${includeAll?'<option value="all">All departments</option>':''}${state.data.departments.filter(d=>d.active!==false).map(d=>`<option value="${d.id}" ${selected===d.id?'selected':''}>${escapeHtml(d.name)}</option>`).join('')}`;
+  }
   function statusBadge(value){const map={APPROVED:'green',COMPLETED:'green',ACTIVE:'green',ON_TRACK:'green',UPCOMING:'blue',IN_PROGRESS:'blue',SUBMITTED:'blue',UNDER_REVIEW:'amber',IN_REVIEW:'amber',AT_RISK:'amber',FROZEN:'amber',DELAYED:'red',REVOKED:'red',REJECTED:'red',ARCHIVED:'gray',DRAFT:'gray',WATCH:'amber',STABLE:'green',CRITICAL:'red',DECISION_REQUIRED:'amber',NOT_ASSESSED:'gray',PROVISIONAL:'amber',PENDING_FINANCE_REVIEW:'amber',VALIDATED:'green',NOT_APPLICABLE:'gray',REWORK_REQUIRED:'red',READY_FOR_DECISION:'green',CONDITIONALLY_READY:'amber',MORE_INFORMATION_REQUIRED:'amber',NOT_READY:'red',NOT_MEASURED:'gray',ACHIEVED:'green',OFF_TRACK:'red',SUGGESTED:'amber',CONFIRMED:'green',RETURNED:'amber',NEW:'teal',CARRY_FORWARD:'blue',EVOLUTION:'green',REPEAT:'amber',CRITICAL:'red',HIGH:'amber',MEDIUM:'blue',LOW:'green'};return `<span class="badge ${map[value]||'gray'}">${escapeHtml(pretty(value))}</span>`;}
   function renderGlobalFilters(){return `<div class="toolbar-group"><select data-filter="year">${yearOptions(state.filters.year)}</select><select data-filter="department">${departmentOptions(state.filters.department,true)}</select></div>`;}
   function dashboardYearOptions(selected){return `<option value="all" ${selected==='all'?'selected':''}>All years</option>${yearOptions(selected)}`;}
@@ -755,6 +769,7 @@ This will also delete them from the database and cannot be undone. Export the CS
   }
 
   function handlePageChange(event){
+    if(event.target.matches('[data-filter="department"]')&&isDepartmentRestrictedUser()){event.target.value=state.user.departmentId;state.filters.department=state.user.departmentId;return;}
     if(event.target.hasAttribute('data-admin-user-filter')){const key=event.target.dataset.adminUserFilter;state.adminUserFilters[key]=event.target.value;render();return;}
     if(event.target.hasAttribute('data-dashboard-year')){state.dashboardYear=event.target.value==='all'?'all':Number(event.target.value);state.dashboardView='all';state.dashboardQuarter='all';state.dashboardQuadrant='all';state.dashboardQuality='all';render();return;}
     if(event.target.hasAttribute('data-dashboard-filter')){const key=event.target.dataset.dashboardFilter,value=event.target.value;if(key==='recordType')state.dashboardRecordType=value;else if(key==='pillar')state.dashboardPillar=value;else if(key==='fit')state.dashboardFit=value;else if(key==='risk')state.dashboardRisk=value;state.dashboardView='all';state.dashboardQuarter='all';state.dashboardQuadrant='all';state.dashboardQuality='all';render();return;}
