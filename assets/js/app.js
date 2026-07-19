@@ -4,7 +4,7 @@
   const config = api.config;
   const el = {};
   const state = {
-    user:null,data:null,route:'dashboard',dashboardYear:'all',dashboardRecordType:'all',dashboardPillar:'all',dashboardFit:'all',dashboardRisk:'all',dashboardView:'all',governanceYear:'all',governanceSearch:'',governanceView:'all',filters:{year:null,department:'all',search:'',status:'all'},projectView:'list',adminTab:'users',adminUserFilters:{search:'',department:'all',role:'all',status:'all'},compareFrom:2026,compareTo:2027
+    user:null,data:null,route:'dashboard',dashboardYear:'all',dashboardRecordType:'all',dashboardPillar:'all',dashboardFit:'all',dashboardRisk:'all',dashboardView:'all',governanceYear:'all',governanceSearch:'',governanceView:'all',filters:{year:null,department:'all',search:'',status:'all'},projectView:'list',timelineScale:'year',timelineAnchor:null,adminTab:'users',adminUserFilters:{search:'',department:'all',role:'all',status:'all'},compareFrom:2026,compareTo:2027
   };
   const navItems = [
     {id:'dashboard',label:'Command Center',roles:'all'},
@@ -453,9 +453,35 @@
     const safe=Math.max(0,Math.min(100,Number(value||0))),tone=safe>=75?'strong':safe>=50?'medium':'low';
     return `<div class="delivery-meter ${type}"><div><span>${type==='readiness'?'Ready':'Complete'}</span><strong>${safe}%</strong></div><div class="delivery-meter-track"><i class="${tone}" style="width:${safe}%"></i></div></div>`;
   }
+  function timelineDate(value){const d=new Date(value+'T00:00:00');return isNaN(d)?null:d;}
+  function startOfWeek(date){const d=new Date(date);const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);d.setHours(0,0,0,0);return d;}
+  function addDays(date,days){const d=new Date(date);d.setDate(d.getDate()+days);return d;}
+  function timelineAnchorDate(){
+    const year=Number(state.filters.year),now=new Date();
+    if(!state.timelineAnchor){state.timelineAnchor=(now.getFullYear()===year?now:new Date(year,0,1)).toISOString().slice(0,10);}
+    let d=new Date(state.timelineAnchor+'T00:00:00');
+    if(isNaN(d)||d.getFullYear()!==year)d=new Date(year,0,1);
+    return d;
+  }
+  function timelinePeriod(){
+    const scale=state.timelineScale||'year',year=Number(state.filters.year),anchor=timelineAnchorDate();
+    if(scale==='week'){
+      const start=startOfWeek(anchor),end=addDays(start,7),cells=Array.from({length:7},(_,i)=>{const d=addDays(start,i);return{label:d.toLocaleDateString('en-MY',{weekday:'short'}),sub:d.toLocaleDateString('en-MY',{day:'numeric',month:'short'}),start:d,end:addDays(d,1)}});
+      return {scale,start,end,cells,title:`Week of ${start.toLocaleDateString('en-MY',{day:'numeric',month:'long',year:'numeric'})}`};
+    }
+    if(scale==='month'){
+      const start=new Date(year,anchor.getMonth(),1),end=new Date(year,anchor.getMonth()+1,1),days=Math.round((end-start)/86400000),cells=Array.from({length:days},(_,i)=>{const d=addDays(start,i);return{label:String(i+1),sub:d.toLocaleDateString('en-MY',{weekday:'short'}),start:d,end:addDays(d,1)}});
+      return {scale,start,end,cells,title:start.toLocaleDateString('en-MY',{month:'long',year:'numeric'})};
+    }
+    const start=new Date(year,0,1),end=new Date(year+1,0,1),cells=Array.from({length:12},(_,i)=>({label:new Date(year,i,1).toLocaleDateString('en-MY',{month:'short'}),sub:'',start:new Date(year,i,1),end:new Date(year,i+1,1)}));
+    return {scale:'year',start,end,cells,title:`AMP ${year}`};
+  }
   function renderTimeline(items){
-    const year=Number(state.filters.year),scheduled=items.filter(p=>p.startDate&&p.targetDate),unscheduled=items.filter(p=>!p.startDate||!p.targetDate),overdue=scheduled.filter(isOverdue).length;
-    return `<section class="card panel timeline-card-modern"><div class="project-timeline-heading"><div><span class="eyebrow">Annual delivery schedule</span><h2>AMP ${year} timeline</h2><p>Initiatives and linked projects positioned using saved start and target dates.</p></div><div class="timeline-summary"><span><b>${scheduled.length}</b> scheduled</span><span class="danger"><b>${overdue}</b> overdue</span><span class="warning"><b>${unscheduled.length}</b> dates required</span></div></div><div class="timeline-legend"><span class="on-track">On track</span><span class="watch">Watch</span><span class="critical">Critical</span><span class="completed">Completed</span></div><div class="timeline project-modern-timeline"><div class="timeline-grid"><div class="timeline-head"><div>Delivery record</div>${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map(m=>`<div>${m}</div>`).join('')}</div>${scheduled.map(p=>{const start=new Date(p.startDate+'T00:00:00'),end=new Date(p.targetDate+'T00:00:00'),health=projectHealthKey(p);let sm=start.getFullYear()===year?start.getMonth():0,em=end.getFullYear()===year?end.getMonth()+1:12;sm=Math.max(0,Math.min(11,sm));em=Math.max(sm+1,Math.min(12,em));const left=sm/12*100,width=(em-sm)/12*100;return `<div class="timeline-row"><div><strong>${escapeHtml(p.title)}</strong><small>${pretty(p.sourceType)} · ${escapeHtml(p.owner||'Unassigned')} · ${Number(p.progress||0)}% complete · ${Number(p.readiness||0)}% ready</small></div><div class="timeline-track"><span class="timeline-bar ${health.toLowerCase()}" style="left:${left}%;width:${width}%" title="${formatDate(p.startDate)} to ${formatDate(p.targetDate)} · ${commandStatusLabel(health)}"><i>${Number(p.progress||0)}%</i></span></div></div>`;}).join('')||'<div class="empty-state">No delivery records have complete schedule dates for this selection.</div>'}</div></div>${unscheduled.length?`<div class="unscheduled-delivery modern"><strong>Schedule dates required</strong>${unscheduled.map(p=>`<span>${escapeHtml(p.title)} · ${pretty(p.sourceType)}</span>`).join('')}</div>`:''}</section>`;
+    const period=timelinePeriod(),scheduled=items.filter(p=>p.startDate&&p.targetDate),unscheduled=items.filter(p=>!p.startDate||!p.targetDate),overdue=scheduled.filter(isOverdue).length;
+    const visible=scheduled.filter(p=>{const start=timelineDate(p.startDate),end=timelineDate(p.targetDate);return start&&end&&end>=period.start&&start<period.end;});
+    const totalMs=Math.max(1,period.end-period.start),gridCols=period.cells.length;
+    const rows=visible.map(p=>{const start=timelineDate(p.startDate),end=addDays(timelineDate(p.targetDate),1),health=projectHealthKey(p),clipStart=new Date(Math.max(start,period.start)),clipEnd=new Date(Math.min(end,period.end)),left=(clipStart-period.start)/totalMs*100,width=Math.max(.8,(clipEnd-clipStart)/totalMs*100);return `<div class="timeline-flex-row"><div class="timeline-record-label"><strong>${escapeHtml(p.title)}</strong><small>${pretty(p.sourceType)} · ${escapeHtml(p.owner||'Unassigned')}</small><em>${formatDate(p.startDate)} → ${formatDate(p.targetDate)}</em></div><div class="timeline-flex-track" style="--timeline-columns:${gridCols}">${period.cells.map(()=>'<i></i>').join('')}<span class="timeline-flex-bar ${health.toLowerCase()}" style="left:${left}%;width:${width}%" title="${formatDate(p.startDate)} to ${formatDate(p.targetDate)} · ${commandStatusLabel(health)}"><b>${Number(p.progress||0)}%</b></span></div></div>`;}).join('');
+    return `<section class="card panel timeline-card-modern"><div class="project-timeline-heading"><div><span class="eyebrow">Delivery schedule</span><h2>${escapeHtml(period.title)} timeline</h2><p>Switch between weekly, monthly and annual planning views using the same saved delivery dates.</p></div><div class="timeline-summary"><span><b>${visible.length}</b> visible</span><span class="danger"><b>${overdue}</b> overdue</span><span class="warning"><b>${unscheduled.length}</b> dates required</span></div></div><div class="timeline-toolbar"><div class="timeline-scale-switch"><button data-action="project-timeline-scale" data-scale="week" class="${period.scale==='week'?'active':''}">Week</button><button data-action="project-timeline-scale" data-scale="month" class="${period.scale==='month'?'active':''}">Month</button><button data-action="project-timeline-scale" data-scale="year" class="${period.scale==='year'?'active':''}">Year</button></div><div class="timeline-period-nav"><button data-action="project-timeline-nav" data-direction="prev" aria-label="Previous period">‹</button><strong>${escapeHtml(period.title)}</strong><button data-action="project-timeline-nav" data-direction="next" aria-label="Next period">›</button><button data-action="project-timeline-today">Today</button></div></div><div class="timeline-legend"><span class="on-track">On track</span><span class="watch">Watch</span><span class="critical">Critical</span><span class="completed">Completed</span></div><div class="timeline-flex-scroll"><div class="timeline-flex-grid" style="--timeline-columns:${gridCols}"><div class="timeline-flex-head"><div>Delivery record</div><div class="timeline-flex-cells">${period.cells.map(c=>`<span><b>${escapeHtml(c.label)}</b>${c.sub?`<small>${escapeHtml(c.sub)}</small>`:''}</span>`).join('')}</div></div>${rows||'<div class="empty-state">No scheduled delivery records fall within this period.</div>'}</div></div>${unscheduled.length?`<div class="unscheduled-delivery modern"><strong>Schedule dates required</strong>${unscheduled.map(p=>`<span>${escapeHtml(p.title)} · ${pretty(p.sourceType)}</span>`).join('')}</div>`:''}</section>`;
   }
 
   function renderComparison(){
@@ -507,9 +533,12 @@
       else if(action==='edit-project')openProjectModal(state.data.projects.find(p=>p.id===id));
       else if(action==='view-project')openProjectView(state.data.projects.find(p=>p.id===id));
       else if(action==='project-view'){state.projectView=button.dataset.view;render();}
+      else if(action==='project-timeline-scale'){state.timelineScale=button.dataset.scale||'year';render();}
+      else if(action==='project-timeline-nav'){const d=timelineAnchorDate(),dir=button.dataset.direction==='prev'?-1:1;if(state.timelineScale==='week')d.setDate(d.getDate()+dir*7);else if(state.timelineScale==='month')d.setMonth(d.getMonth()+dir);else d.setFullYear(d.getFullYear()+dir);state.timelineAnchor=d.toISOString().slice(0,10);if(state.timelineScale==='year')state.filters.year=d.getFullYear();render();}
+      else if(action==='project-timeline-today'){const now=new Date();state.timelineAnchor=now.toISOString().slice(0,10);state.filters.year=now.getFullYear();render();}
       else if(action==='project-health-filter'){state.filters.status=button.dataset.status||'all';render();}
-      else if(action==='project-reset'){state.filters.search='';state.filters.department='all';state.filters.status='all';render();}
-      else if(action==='project-year-shortcut'){state.filters.year=Number(button.dataset.year);state.filters.search='';state.filters.status='all';render();}
+      else if(action==='project-reset'){state.filters.search='';state.filters.department='all';state.filters.status='all';state.timelineScale='year';state.timelineAnchor=null;render();}
+      else if(action==='project-year-shortcut'){state.filters.year=Number(button.dataset.year);state.filters.search='';state.filters.status='all';state.timelineAnchor=null;render();}
       else if(action==='new-user')openUserModal();
       else if(action==='import-users')openUserImportModal();
       else if(action==='download-user-template')downloadUserTemplate();
