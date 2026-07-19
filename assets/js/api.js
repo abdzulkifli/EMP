@@ -405,7 +405,17 @@
     };
   }
 
+  function validateInitiativeCodeForSave(record){
+    var code=String(record&&record.code||'').trim().toUpperCase(),year=Number(record&&record.year);
+    if(!code) throw new Error('Initiative code is required before saving.');
+    var compact=code.replace(/[^A-Z0-9]/g,'');
+    if(compact===String(year)||compact==='AMP'+String(year)||compact==='AMP'+String(year).slice(-2)) throw new Error('Initiative code cannot be only the AMP year.');
+    if(!/^AMP\d{2}-[A-Z0-9]{2,10}-\d{6}$/.test(code)) throw new Error('Initiative code must follow the HOME31 format AMPYY-DEPARTMENT-######.');
+    record.code=code;
+  }
+
   async function saveInitiative(record,user,context){
+    validateInitiativeCodeForSave(record);
     if(!isLive()){
       var db = getDemoDb();
       var existing = record.id && db.initiatives.find(function(i){return i.id===record.id;});
