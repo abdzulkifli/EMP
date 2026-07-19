@@ -302,3 +302,283 @@ td .muted,td small,.record-meta,.table-meta{font-size:12px;line-height:1.45;colo
 @media(max-width:1450px){.operational-kpis{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:980px){.budget-journey-header{align-items:flex-start;flex-direction:column}.budget-journey-saving{width:100%;text-align:left}.budget-journey-stages{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:620px){.operational-kpis{grid-template-columns:1fr}.budget-journey-card{padding:14px}.budget-journey-stages{grid-template-columns:1fr}.budget-journey-stage>strong{font-size:17px}}
+
+/* HOME31 V8.8 — Budget Journey tooltip visibility fix */
+.budget-journey-card,
+.budget-journey-header,
+.budget-journey-stages,
+.budget-journey-stage,
+.budget-journey-footer {
+  overflow: visible !important;
+}
+
+.budget-journey-card {
+  position: relative;
+  z-index: 8;
+  isolation: auto;
+}
+
+.budget-journey-stage {
+  position: relative;
+  z-index: 1;
+  cursor: help;
+}
+
+.budget-journey-stage:hover,
+.budget-journey-stage:focus-visible {
+  z-index: 1002;
+}
+
+/* Show Budget Journey tooltips below the stage so they are not hidden by KPI cards above. */
+.budget-journey-stage.has-tooltip::after {
+  top: calc(100% + 11px);
+  bottom: auto;
+  left: 50%;
+  z-index: 1004;
+  width: 270px;
+  max-width: min(270px, calc(100vw - 36px));
+  padding: 11px 13px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 10px;
+  background: #10293b;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: 0 16px 36px rgba(6,24,39,.30);
+  transform: translateX(-50%) translateY(-4px);
+}
+
+.budget-journey-stage.has-tooltip::before {
+  top: calc(100% + 5px);
+  bottom: auto;
+  left: 50%;
+  z-index: 1005;
+  border: 6px solid transparent;
+  border-top-color: transparent;
+  border-bottom-color: #10293b;
+  transform: translateX(-50%);
+}
+
+.budget-journey-stage.has-tooltip:hover::after,
+.budget-journey-stage.has-tooltip:focus-visible::after {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Keep edge tooltips inside the viewport on wide layouts. */
+.budget-journey-stage:first-child.has-tooltip::after {
+  left: 0;
+  transform: translateX(0) translateY(-4px);
+}
+.budget-journey-stage:first-child.has-tooltip:hover::after,
+.budget-journey-stage:first-child.has-tooltip:focus-visible::after {
+  transform: translateX(0) translateY(0);
+}
+.budget-journey-stage:first-child.has-tooltip::before {
+  left: 28px;
+}
+
+.budget-journey-stage:last-child.has-tooltip::after {
+  left: auto;
+  right: 0;
+  transform: translateX(0) translateY(-4px);
+}
+.budget-journey-stage:last-child.has-tooltip:hover::after,
+.budget-journey-stage:last-child.has-tooltip:focus-visible::after {
+  transform: translateX(0) translateY(0);
+}
+.budget-journey-stage:last-child.has-tooltip::before {
+  left: auto;
+  right: 28px;
+  transform: none;
+}
+
+/* The card-level definition appears below the full card rather than behind the KPI row. */
+.budget-journey-card.has-tooltip::after {
+  top: calc(100% + 12px);
+  bottom: auto;
+  z-index: 1000;
+}
+.budget-journey-card.has-tooltip::before {
+  top: calc(100% + 6px);
+  bottom: auto;
+  z-index: 1001;
+  border-top-color: transparent;
+  border-bottom-color: #10293b;
+}
+
+@media (max-width: 980px) {
+  .budget-journey-stage.has-tooltip::after,
+  .budget-journey-stage:first-child.has-tooltip::after,
+  .budget-journey-stage:last-child.has-tooltip::after {
+    left: 12px;
+    right: auto;
+    width: min(300px, calc(100vw - 58px));
+    transform: translateX(0) translateY(-4px);
+  }
+  .budget-journey-stage.has-tooltip:hover::after,
+  .budget-journey-stage.has-tooltip:focus-visible::after,
+  .budget-journey-stage:first-child.has-tooltip:hover::after,
+  .budget-journey-stage:first-child.has-tooltip:focus-visible::after,
+  .budget-journey-stage:last-child.has-tooltip:hover::after,
+  .budget-journey-stage:last-child.has-tooltip:focus-visible::after {
+    transform: translateX(0) translateY(0);
+  }
+  .budget-journey-stage.has-tooltip::before,
+  .budget-journey-stage:first-child.has-tooltip::before,
+  .budget-journey-stage:last-child.has-tooltip::before {
+    left: 30px;
+    right: auto;
+    transform: translateX(-50%);
+  }
+}
+
+/* HOME31 V8.9 — Executive KPI tooltip visibility fix */
+.command-kpi-grid,
+.executive-kpis,
+.operational-kpis {
+  position: relative;
+  z-index: 30;
+  overflow: visible !important;
+  isolation: auto;
+}
+
+.command-kpi {
+  position: relative;
+  z-index: 1;
+  overflow: visible !important;
+}
+
+.command-kpi:hover,
+.command-kpi:focus-visible {
+  z-index: 3000;
+}
+
+/* Display KPI explanations below the six cards and above the Budget Journey. */
+.command-kpi.has-tooltip::after {
+  top: calc(100% + 12px);
+  bottom: auto;
+  left: 50%;
+  z-index: 3002;
+  width: 270px;
+  max-width: min(270px, calc(100vw - 36px));
+  padding: 11px 13px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 10px;
+  background: #10293b;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: left;
+  white-space: normal;
+  box-shadow: 0 18px 40px rgba(6,24,39,.34);
+  transform: translateX(-50%) translateY(-4px);
+}
+
+.command-kpi.has-tooltip::before {
+  top: calc(100% + 6px);
+  bottom: auto;
+  left: 50%;
+  z-index: 3003;
+  border: 6px solid transparent;
+  border-top-color: transparent;
+  border-bottom-color: #10293b;
+  transform: translateX(-50%);
+}
+
+.command-kpi.has-tooltip:hover::after,
+.command-kpi.has-tooltip:focus-visible::after {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Keep the first and last KPI tooltips inside the viewport. */
+.command-kpi:first-child.has-tooltip::after {
+  left: 0;
+  transform: translateX(0) translateY(-4px);
+}
+.command-kpi:first-child.has-tooltip:hover::after,
+.command-kpi:first-child.has-tooltip:focus-visible::after {
+  transform: translateX(0) translateY(0);
+}
+.command-kpi:first-child.has-tooltip::before {
+  left: 28px;
+}
+
+.command-kpi:last-child.has-tooltip::after {
+  left: auto;
+  right: 0;
+  transform: translateX(0) translateY(-4px);
+}
+.command-kpi:last-child.has-tooltip:hover::after,
+.command-kpi:last-child.has-tooltip:focus-visible::after {
+  transform: translateX(0) translateY(0);
+}
+.command-kpi:last-child.has-tooltip::before {
+  left: auto;
+  right: 28px;
+  transform: none;
+}
+
+/* Ensure the section immediately below does not paint over KPI tooltips. */
+.command-kpi-grid + .budget-journey-card,
+.operational-kpis + .budget-journey-card {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 1300px) {
+  .command-kpi:nth-child(3n + 1).has-tooltip::after {
+    left: 0;
+    right: auto;
+    transform: translateX(0) translateY(-4px);
+  }
+  .command-kpi:nth-child(3n + 1).has-tooltip:hover::after,
+  .command-kpi:nth-child(3n + 1).has-tooltip:focus-visible::after {
+    transform: translateX(0) translateY(0);
+  }
+  .command-kpi:nth-child(3n + 1).has-tooltip::before {
+    left: 28px;
+    right: auto;
+    transform: translateX(-50%);
+  }
+  .command-kpi:nth-child(3n).has-tooltip::after {
+    left: auto;
+    right: 0;
+    transform: translateX(0) translateY(-4px);
+  }
+  .command-kpi:nth-child(3n).has-tooltip:hover::after,
+  .command-kpi:nth-child(3n).has-tooltip:focus-visible::after {
+    transform: translateX(0) translateY(0);
+  }
+  .command-kpi:nth-child(3n).has-tooltip::before {
+    left: auto;
+    right: 28px;
+    transform: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .command-kpi.has-tooltip::after,
+  .command-kpi:first-child.has-tooltip::after,
+  .command-kpi:last-child.has-tooltip::after {
+    left: 12px;
+    right: auto;
+    width: min(300px, calc(100vw - 58px));
+    transform: translateX(0) translateY(-4px);
+  }
+  .command-kpi.has-tooltip:hover::after,
+  .command-kpi.has-tooltip:focus-visible::after,
+  .command-kpi:first-child.has-tooltip:hover::after,
+  .command-kpi:first-child.has-tooltip:focus-visible::after,
+  .command-kpi:last-child.has-tooltip:hover::after,
+  .command-kpi:last-child.has-tooltip:focus-visible::after {
+    transform: translateX(0) translateY(0);
+  }
+  .command-kpi.has-tooltip::before,
+  .command-kpi:first-child.has-tooltip::before,
+  .command-kpi:last-child.has-tooltip::before {
+    left: 30px;
+    right: auto;
+    transform: translateX(-50%);
+  }
+}
