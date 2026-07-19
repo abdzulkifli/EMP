@@ -219,7 +219,8 @@
       optionalRequestResult('/rest/v1/initiative_phase3_overview_v?select=*'),
       optionalRequestResult('/rest/v1/initiative_continuity_overview_v?select=*&order=updated_at.desc'),
       optionalRequestResult('/rest/v1/decision_readiness_models?select=id,code,name,description,status,effective_from,effective_to,is_default&status=eq.ACTIVE&order=is_default.desc,effective_from.desc'),
-      optionalRequestResult('/rest/v1/decision_readiness_weights?select=id,model_id,dimension_code,dimension_label,weight_percentage,display_order,is_required&order=display_order')
+      optionalRequestResult('/rest/v1/decision_readiness_weights?select=id,model_id,dimension_code,dimension_label,weight_percentage,display_order,is_required&order=display_order'),
+      optionalRequestResult('/rest/v1/audit_logs?select=id,created_at,user_id,action,entity_type,entity_id,old_values,new_values&order=created_at.desc&limit=250')
     ]);
     var formMap = {};
     (results[7] || []).forEach(function(row){ formMap[row.initiative_cycle_id] = row.form_data || {}; });
@@ -273,7 +274,34 @@
         if(user&&mapped.id===user.id){mapped.role=user.role||mapped.role;mapped.departmentId=user.departmentId||mapped.departmentId;mapped.name=user.name||mapped.name;mapped.status=user.status||mapped.status;}
         return mapped;
       }),
-      portfolios:results[4],strategicPillars:results[5],audit:[],
+      portfolios:results[4],strategicPillars:results[5],
+      audit:(results[12].data||[]).map(function(row){
+        var actor=(results[6]||[]).find(function(item){
+          return item.id===row.user_id;
+        });
+
+        var changes=row.new_values||row.old_values||{};
+        var details='';
+
+        try{
+          details=typeof changes==='string'
+            ? changes
+            : JSON.stringify(changes);
+        }catch(error){
+          details='';
+        }
+
+        return {
+          id:row.id,
+          time:row.created_at,
+          user:actor
+            ? (actor.full_name||actor.email||'Unknown user')
+            : 'System',
+          action:row.action||'ACTIVITY',
+          entity:row.entity_type||'Record',
+          details:details
+        };
+      }),
       continuityLinks:(results[9].data||[]).map(function(row){return{id:row.id,previousCycleId:row.previous_cycle_id,currentCycleId:row.current_cycle_id,continuityType:row.continuity_type,matchConfidence:row.match_confidence===null?null:Number(row.match_confidence),matchMethod:row.match_method,approvedBudgetMovement:row.approved_budget_movement===null?null:Number(row.approved_budget_movement),cbaRatioMovement:row.cba_ratio_movement===null?null:Number(row.cba_ratio_movement),scopeChangeExplanation:row.scope_change_explanation,managementStatus:row.management_status,confirmedBy:row.confirmed_by,confirmedAt:row.confirmed_at,updatedAt:row.updated_at};}),
       decisionReadinessModels:(results[10].data||[]).map(function(row){return{id:row.id,code:row.code,name:row.name,description:row.description,status:row.status,effectiveFrom:row.effective_from,effectiveTo:row.effective_to,isDefault:row.is_default};}),
       decisionReadinessWeights:(results[11].data||[]).map(function(row){return{id:row.id,modelId:row.model_id,dimensionCode:row.dimension_code,dimensionLabel:row.dimension_label,weightPercentage:Number(row.weight_percentage||0),displayOrder:Number(row.display_order||0),isRequired:row.is_required};}),
