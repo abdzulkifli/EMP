@@ -7,7 +7,7 @@
   <meta name="description" content="HOME31 enterprise portfolio, initiative, project and budget dashboard">
   <title>HOME31 Executive Command Center</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="assets/css/styles.css?v=8.9-visible-kpi-tooltips">
+  <link rel="stylesheet" href="assets/css/styles.css?v=9.0-clean-login">
 </head>
 <body>
   <noscript><div class="fatal">HOME31 requires JavaScript to run.</div></noscript>
@@ -30,10 +30,10 @@
       <form id="login-form" class="login-card" autocomplete="on">
         <div class="login-icon">🔐</div>
         <h2 id="login-title">Sign in to HOME31</h2>
-        <p id="mode-copy">Use the demo account below. Supabase can be enabled later in <code>config.js</code>.</p>
+        <p id="mode-copy">Please enter your HOME31 email address and password.</p>
         <div id="login-alert" class="alert danger hidden" role="alert"></div>
-        <label class="field"><span>Email</span><input id="login-email" type="email" autocomplete="username" required value="admin@home31.demo"></label>
-        <label class="field"><span>Password</span><input id="login-password" type="password" autocomplete="current-password" required value="Home31!Demo"></label>
+        <label class="field"><span>Email</span><input id="login-email" type="email" autocomplete="username" inputmode="email" placeholder="Enter your HOME31 email address" required></label>
+        <label class="field"><span>Password</span><input id="login-password" type="password" autocomplete="current-password" placeholder="Enter your password" required></label>
         <button class="btn primary wide" type="submit">Sign in</button>
         <div class="login-author-credit" aria-label="Application author">
           <span>Author | Developed by</span>
@@ -78,7 +78,7 @@
 
   <script src="config.js"></script>
   <script src="assets/js/data.js?v=7.1"></script>
-  <script src="assets/js/api.js?v=8.9-visible-kpi-tooltips"></script>
-  <script src="assets/js/app.js?v=8.9-visible-kpi-tooltips"></script>
+  <script src="assets/js/api.js?v=9.0-clean-login"></script>
+  <script src="assets/js/app.js?v=9.0-clean-login"></script>
 </body>
 </html>
