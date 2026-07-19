@@ -558,6 +558,29 @@
     return request('/functions/v1/admin-users',{method:'POST',body:JSON.stringify({action:'status',userId:id,status:status})});
   }
 
+  async function resetUserPassword(record,user){
+    if(!record||!record.userId) throw new Error('Choose a user to reset.');
+    if(!record.temporaryPassword||String(record.temporaryPassword).length<10) throw new Error('Use at least 10 characters for the temporary password.');
+    if(!user||user.role!=='SUPER_ADMIN') throw new Error('Only the Super Administrator can reset another user password.');
+    if(!isLive()){
+      var db=getDemoDb(),target=db.users.find(function(u){return u.id===record.userId;});
+      if(!target) throw new Error('User not found.');
+      target.password=String(record.temporaryPassword);
+      target.mustChangePassword=record.mustChangePassword!==false;
+      demoAudit(db,user,'PASSWORD_RESET','User','Temporary password issued for '+target.email+'.');
+      saveDemoDb(db);
+      return {success:true,userId:target.id,mustChangePassword:target.mustChangePassword};
+    }
+    return request('/functions/v1/admin-reset-password',{
+      method:'POST',
+      body:JSON.stringify({
+        userId:record.userId,
+        temporaryPassword:String(record.temporaryPassword),
+        mustChangePassword:record.mustChangePassword!==false
+      })
+    });
+  }
+
   async function saveDepartment(record,user){
     if(!isLive()){
       var db=getDemoDb(), existing=record.id&&db.departments.find(function(d){return d.id===record.id;});
@@ -657,7 +680,7 @@
 
   window.HOME31_API={
     config:config,isLive:isLive,roleLabel:roleLabel,signIn:signIn,signOut:signOut,getCurrentUser:getCurrentUser,changePassword:changePassword,loadData:loadData,
-    saveInitiative:saveInitiative,archiveInitiative:archiveInitiative,deleteInitiative:deleteInitiative,saveProject:saveProject,saveUser:saveUser,updateUser:updateUser,updateUserStatus:updateUserStatus,saveDepartment:saveDepartment,saveYear:saveYear,
+    saveInitiative:saveInitiative,archiveInitiative:archiveInitiative,deleteInitiative:deleteInitiative,saveProject:saveProject,saveUser:saveUser,updateUser:updateUser,updateUserStatus:updateUserStatus,resetUserPassword:resetUserPassword,saveDepartment:saveDepartment,saveYear:saveYear,
     loadPhase3History:loadPhase3History,saveBenefitMeasurement:saveBenefitMeasurement,saveCbaReview:saveCbaReview,saveFinanceUpdate:saveFinanceUpdate,saveContinuityLink:saveContinuityLink,saveDecisionReadinessAssessment:saveDecisionReadinessAssessment,deleteAllAuditLogs:deleteAllAuditLogs,resetDemo:resetDemo
   };
 })();

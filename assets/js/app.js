@@ -4,7 +4,7 @@
   const config = api.config;
   const el = {};
   const state = {
-    user:null,data:null,route:'dashboard',dashboardYear:'all',dashboardRecordType:'all',dashboardPillar:'all',dashboardFit:'all',dashboardRisk:'all',dashboardView:'all',governanceYear:'all',governanceSearch:'',governanceView:'all',filters:{year:null,department:'all',search:'',status:'all'},projectView:'list',timelineScale:'year',timelineAnchor:null,adminTab:'users',adminUserFilters:{search:'',department:'all',role:'all',status:'all'},compareFrom:2026,compareTo:2027
+    user:null,data:null,route:'dashboard',dashboardYear:'all',dashboardRecordType:'all',dashboardPillar:'all',dashboardFit:'all',dashboardRisk:'all',dashboardView:'all',dashboardQuarter:'all',dashboardQuadrant:'all',dashboardQuality:'all',governanceYear:'all',governanceSearch:'',governanceView:'all',filters:{year:null,department:'all',search:'',status:'all'},projectView:'list',timelineScale:'year',timelineAnchor:null,adminTab:'users',adminUserFilters:{search:'',department:'all',role:'all',status:'all'},compareFrom:2026,compareTo:2027
   };
   const navItems = [
     {id:'dashboard',label:'Command Center',roles:'all'},
@@ -225,16 +225,50 @@
     if(state.dashboardRecordType==='projects')items=items.filter(i=>i.sourceType==='PROJECT');
     return items;
   }
+  function dashboardQuadrantForInitiative(item){
+    const benefit=initiativeBenefitScore(item),complexity=initiativeComplexityScore(item);
+    if(benefit===null||complexity===null)return 'unassessed';
+    if(benefit>=3&&complexity<3)return 'quick-wins';
+    if(benefit>=3&&complexity>=3)return 'strategic-investments';
+    if(benefit<3&&complexity>=3)return 'reconsider';
+    return 'fill-ins';
+  }
+  function dashboardQualityMatches(item,key){
+    if(key==='ownership')return !String(item.owner||'').trim()||item.owner==='Unassigned';
+    if(key==='budget')return !(Number(item.budget||0)>0);
+    if(key==='target')return !item.targetDate;
+    if(key==='cba')return item.cba===null;
+    if(key==='evidence')return Number(item.evidence||0)<70;
+    if(key==='next-action')return !String(item.nextAction||'').trim();
+    if(key==='hr')return !item.hrReview||['Not submitted','Not assessed','Not Assessed'].includes(item.hrReview);
+    if(key==='ict')return !item.ictReview||['Not assessed','Not Assessed','N/A','None'].includes(item.ictReview);
+    return true;
+  }
   function dashboardViewItems(items){
-    if(state.dashboardView==='critical')return items.filter(i=>i.health==='CRITICAL');
-    if(state.dashboardView==='risk')return items.filter(i=>['CRITICAL','WATCH'].includes(i.health));
-    if(state.dashboardView==='watch')return items.filter(i=>i.health==='WATCH');
-    if(state.dashboardView==='overdue')return items.filter(i=>isOverdue(i));
-    if(state.dashboardView==='decisions')return items.filter(i=>i.decisions?.length);
-    if(state.dashboardView==='missing')return items.filter(i=>!i.targetDate||!i.nextAction||!i.owner||i.evidence<70);
-    if(state.dashboardView==='high-cba')return items.filter(i=>i.cba!==null&&i.cba>=1);
-    if(state.dashboardView==='low-cba')return items.filter(i=>i.cba!==null&&i.cba<1);
-    return items;
+    let visible=items.slice();
+    if(state.dashboardView==='critical')visible=visible.filter(i=>i.health==='CRITICAL');
+    else if(state.dashboardView==='risk')visible=visible.filter(i=>['CRITICAL','WATCH'].includes(i.health));
+    else if(state.dashboardView==='watch')visible=visible.filter(i=>i.health==='WATCH');
+    else if(state.dashboardView==='overdue')visible=visible.filter(i=>isOverdue(i));
+    else if(state.dashboardView==='decisions')visible=visible.filter(i=>i.decisions?.length);
+    else if(state.dashboardView==='missing')visible=visible.filter(i=>!i.targetDate||!i.nextAction||!i.owner||i.evidence<70);
+    else if(state.dashboardView==='high-cba')visible=visible.filter(i=>i.cba!==null&&i.cba>=1);
+    else if(state.dashboardView==='low-cba')visible=visible.filter(i=>i.cba!==null&&i.cba<1);
+    if(state.dashboardQuarter!=='all')visible=visible.filter(i=>quarterOf(i.startDate)===Number(state.dashboardQuarter)||quarterOf(i.targetDate)===Number(state.dashboardQuarter));
+    if(state.dashboardQuadrant!=='all')visible=visible.filter(i=>{const initiative=state.data.initiatives.find(x=>x.id===i.initiativeId);return initiative&&dashboardQuadrantForInitiative(initiative)===state.dashboardQuadrant;});
+    if(state.dashboardQuality!=='all')visible=visible.filter(i=>dashboardQualityMatches(i,state.dashboardQuality));
+    return visible;
+  }
+  function dashboardActiveFilterBanner(items){
+    const chips=[];
+    if(state.dashboardView!=='all')chips.push(pretty(state.dashboardView));
+    if(state.dashboardQuarter!=='all')chips.push('Q'+state.dashboardQuarter);
+    if(state.dashboardQuadrant!=='all')chips.push(pretty(state.dashboardQuadrant));
+    if(state.dashboardQuality!=='all')chips.push('Missing '+pretty(state.dashboardQuality));
+    if(state.dashboardPillar!=='all'){const p=state.data.strategicPillars.find(x=>x.id===state.dashboardPillar);if(p)chips.push(p.name);}
+    if(state.filters.department!=='all')chips.push(departmentName(state.filters.department));
+    if(!chips.length)return '';
+    return `<section class="dashboard-active-filter"><div><span>Current interactive view</span><strong>${chips.map(escapeHtml).join(' · ')}</strong><small>${dashboardViewItems(items).length} matching delivery records</small></div><button class="btn outline compact" data-action="dashboard-clear-interactions">Clear chart selections</button></section>`;
   }
   function budgetTotals(items){return items.reduce((a,i)=>{a.requested+=Number(i.requestedBudget||0);a.approved+=Number(i.approvedBudget||0);a.committed+=financeValue(i,'committedAmount',i.committedBudget);a.utilised+=financeValue(i,'utilisedAmount',i.utilisedBudget);return a;},{requested:0,approved:0,committed:0,utilised:0});}
   function numberOrNull(value){if(value===null||value===undefined||value==='')return null;const n=Number(value);return Number.isFinite(n)?n:null;}
@@ -312,17 +346,17 @@
     const w=760,h=360,pad=54,maxBudget=Math.max(...rows.map(x=>x.budget),1);
     const x=v=>pad+((v-1)/4)*(w-pad*2),y=v=>h-pad-((v-1)/4)*(h-pad*2);
     const grid=[1,2,3,4,5].map(v=>`<line x1="${x(v)}" y1="${pad}" x2="${x(v)}" y2="${h-pad}" class="matrix-grid"/><line x1="${pad}" y1="${y(v)}" x2="${w-pad}" y2="${y(v)}" class="matrix-grid"/>`).join('');
-    const points=rows.map(r=>{const cx=x(r.complexity),cy=y(r.benefit),radius=Math.max(8,Math.min(22,8+Math.sqrt(r.budget/maxBudget)*14));return `<g class="matrix-point ${managementClass(r.health)}"><circle cx="${cx}" cy="${cy}" r="${radius}"><title>${escapeHtml(r.i.title)} · Benefit ${r.benefit.toFixed(1)}/5 · Complexity ${r.complexity.toFixed(1)}/5 · ${money(r.budget)}</title></circle>${rows.length<=12?`<text x="${cx+radius+5}" y="${cy+3}">${escapeHtml(shortText(r.i.title,18))}</text>`:''}</g>`}).join('');
+    const points=rows.map(r=>{const cx=x(r.complexity),cy=y(r.benefit),radius=Math.max(8,Math.min(22,8+Math.sqrt(r.budget/maxBudget)*14));return `<g class="matrix-point interactive ${managementClass(r.health)}" data-action="view-initiative" data-id="${r.i.id}" tabindex="0"><circle cx="${cx}" cy="${cy}" r="${radius}"><title>${escapeHtml(r.i.title)} · Benefit ${r.benefit.toFixed(1)}/5 · Complexity ${r.complexity.toFixed(1)}/5 · ${money(r.budget)}</title></circle>${rows.length<=12?`<text x="${cx+radius+5}" y="${cy+3}">${escapeHtml(shortText(r.i.title,18))}</text>`:''}</g>`}).join('');
     const quick=rows.filter(r=>r.benefit>=3&&r.complexity<3).length,strategic=rows.filter(r=>r.benefit>=3&&r.complexity>=3).length,reconsider=rows.filter(r=>r.benefit<3&&r.complexity>=3).length;
     const summary=quick?`${quick} quick-win initiative${quick===1?' is':'s are'} positioned for priority delivery. ${strategic} strategic investment${strategic===1?' requires':'s require'} stronger governance due to higher complexity.`:strategic?`${strategic} initiative${strategic===1?' is':'s are'} concentrated in the high-benefit, high-complexity area and should be governed closely.`:reconsider?`${reconsider} initiative${reconsider===1?' has':'s have'} relatively high complexity compared with expected benefit and may need scope review.`:'The current portfolio is concentrated in lower-complexity delivery.';
-    return `<div class="matrix-wrap"><svg class="cba-matrix" viewBox="0 0 ${w} ${h}" role="img" aria-label="Cost benefit complexity matrix">${grid}<line x1="${x(3)}" y1="${pad}" x2="${x(3)}" y2="${h-pad}" class="matrix-threshold"/><line x1="${pad}" y1="${y(3)}" x2="${w-pad}" y2="${y(3)}" class="matrix-threshold"/><text x="${pad+10}" y="${pad+18}" class="quadrant-label">Quick Wins</text><text x="${w-pad-10}" y="${pad+18}" text-anchor="end" class="quadrant-label">Strategic Investments</text><text x="${pad+10}" y="${h-pad-10}" class="quadrant-label">Fill-ins</text><text x="${w-pad-10}" y="${h-pad-10}" text-anchor="end" class="quadrant-label">Reconsider</text><text x="${w/2}" y="${h-10}" class="axis-label">Delivery Complexity</text><text transform="translate(16 ${h/2}) rotate(-90)" class="axis-label">Expected Benefit</text>${points}</svg><div class="matrix-legend"><span class="stable">On Track</span><span class="watch">Watch</span><span class="critical">Critical</span><small>Bubble size represents Approved Budget. Scores use saved values where available and derived indicators otherwise.</small></div></div>${chartSummary(summary,quick||strategic?'positive':'neutral')}`;
+    return `<div class="matrix-quadrant-controls">${[['quick-wins','Quick Wins',quick],['strategic-investments','Strategic Investments',strategic],['fill-ins','Fill-ins',rows.filter(r=>r.benefit<3&&r.complexity<3).length],['reconsider','Reconsider',reconsider]].map(([id,label,count])=>`<button data-action="dashboard-quadrant" data-quadrant="${id}" class="${state.dashboardQuadrant===id?'active':''}"><span>${label}</span><strong>${count}</strong></button>`).join('')}</div><div class="matrix-wrap"><svg class="cba-matrix" viewBox="0 0 ${w} ${h}" role="img" aria-label="Cost benefit complexity matrix">${grid}<line x1="${x(3)}" y1="${pad}" x2="${x(3)}" y2="${h-pad}" class="matrix-threshold"/><line x1="${pad}" y1="${y(3)}" x2="${w-pad}" y2="${y(3)}" class="matrix-threshold"/><text x="${pad+10}" y="${pad+18}" class="quadrant-label">Quick Wins</text><text x="${w-pad-10}" y="${pad+18}" text-anchor="end" class="quadrant-label">Strategic Investments</text><text x="${pad+10}" y="${h-pad-10}" class="quadrant-label">Fill-ins</text><text x="${w-pad-10}" y="${h-pad-10}" text-anchor="end" class="quadrant-label">Reconsider</text><text x="${w/2}" y="${h-10}" class="axis-label">Delivery Complexity</text><text transform="translate(16 ${h/2}) rotate(-90)" class="axis-label">Expected Benefit</text>${points}</svg><div class="matrix-legend"><span class="stable">On Track</span><span class="watch">Watch</span><span class="critical">Critical</span><small>Bubble size represents Approved Budget. Scores use saved values where available and derived indicators otherwise.</small></div></div>${chartSummary(summary,quick||strategic?'positive':'neutral')}`;
   }
   function quarterOf(dateValue){const d=new Date(String(dateValue||'').length===10?dateValue+'T00:00:00':dateValue);return isNaN(d)?null:Math.floor(d.getMonth()/3)+1;}
   function renderQuarterlyDeliveryLoad(items){
     const quarters=[1,2,3,4].map(q=>({quarter:'Q'+q,active:0,completions:0,overdue:0,budget:0}));
     items.forEach(i=>{const startQ=quarterOf(i.startDate),targetQ=quarterOf(i.targetDate);if(startQ)quarters[startQ-1].active++;if(targetQ){quarters[targetQ-1].completions++;quarters[targetQ-1].budget+=Number(i.budget||0);if(isOverdue(i))quarters[targetQ-1].overdue++;}});
     const max=Math.max(1,...quarters.map(q=>q.active+q.completions+q.overdue));
-    const bars=quarters.map(q=>{const total=q.active+q.completions+q.overdue;return `<div class="quarter-column has-tooltip" data-tooltip="${escapeAttr(`${q.quarter}: ${q.active} planned starts, ${q.completions} target completions, ${q.overdue} overdue carry-forward, ${money(q.budget)} budget tied to target completions.`)}"><div class="quarter-stack" style="height:${Math.max(10,total/max*190)}px"><i class="quarter-active" style="flex:${q.active||0}"></i><i class="quarter-complete" style="flex:${q.completions||0}"></i><i class="quarter-overdue" style="flex:${q.overdue||0}"></i></div><strong>${q.quarter}</strong><small>${total} load items</small></div>`}).join('');
+    const bars=quarters.map(q=>{const total=q.active+q.completions+q.overdue;return `<button class="quarter-column has-tooltip ${state.dashboardQuarter===String(q.quarter.slice(1))?'active':''}" data-action="dashboard-quarter" data-quarter="${q.quarter.slice(1)}" data-tooltip="${escapeAttr(`${q.quarter}: ${q.active} planned starts, ${q.completions} target completions, ${q.overdue} overdue carry-forward, ${money(q.budget)} budget tied to target completions.`)}"><div class="quarter-stack" style="height:${Math.max(10,total/max*190)}px"><i class="quarter-active" style="flex:${q.active||0}"></i><i class="quarter-complete" style="flex:${q.completions||0}"></i><i class="quarter-overdue" style="flex:${q.overdue||0}"></i></div><strong>${q.quarter}</strong><small>${total} load items</small></button>`}).join('');
     const peak=quarters.slice().sort((a,b)=>(b.active+b.completions+b.overdue)-(a.active+a.completions+a.overdue))[0],totalLoad=quarters.reduce((s,q)=>s+q.active+q.completions+q.overdue,0),peakLoad=peak.active+peak.completions+peak.overdue;
     const summary=totalLoad?`${peak.quarter} has the highest delivery concentration with ${peakLoad} scheduled load item${peakLoad===1?'':'s'}. ${peak.overdue?peak.overdue+' overdue item'+(peak.overdue===1?' is':'s are')+' included and require follow-up.':'No overdue carry-forward is concentrated in this quarter.'}`:'No dated delivery activity is available for quarterly analysis.';
     return `<div class="quarterly-load-chart"><div class="quarter-columns">${bars}</div><div class="quarter-legend"><span class="active">Planned start</span><span class="complete">Target completion</span><span class="overdue">Overdue carry-forward</span></div></div>${chartSummary(summary,peak.overdue?'warning':'positive')}`;
@@ -384,15 +418,15 @@
     return `<div class="amp-line-chart"><svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Approved Budget by AMP year">${grid}<line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" class="matrix-axis"/><polyline points="${poly}" class="amp-line"/>${pts.map(p=>`<g class="amp-point"><circle cx="${p.x}" cy="${p.y}" r="6"><title>AMP ${p.year}: ${money(p.budget)}, ${p.count} initiatives</title></circle><text x="${p.x}" y="${h-18}" text-anchor="middle">${p.year}</text><text x="${p.x}" y="${Math.max(15,p.y-12)}" text-anchor="middle">${moneyShort(p.budget)}</text></g>`).join('')}</svg><div class="amp-trend-summary">${rows.map(r=>`<span><b>AMP ${r.year}</b>${r.count} initiatives</span>`).join('')}</div></div>${chartSummary(summary,change>0?'positive':'neutral')}`;
   }
   function renderStrategicAlignment(initiatives){
-    const rows=(state.data.strategicPillars||[]).map(p=>{const list=initiatives.filter(i=>(i.formData?.strategicPillarId||i.strategicPillarId)===p.id);return {name:p.name,count:list.length,budget:list.reduce((s,i)=>s+Number(i.approvedBudget||0),0)};}).filter(r=>r.count).sort((a,b)=>b.count-a.count),max=Math.max(...rows.map(r=>r.count),1);
+    const rows=(state.data.strategicPillars||[]).map(p=>{const list=initiatives.filter(i=>(i.formData?.strategicPillarId||i.strategicPillarId)===p.id);return {id:p.id,name:p.name,count:list.length,budget:list.reduce((s,i)=>s+Number(i.approvedBudget||0),0)};}).filter(r=>r.count).sort((a,b)=>b.count-a.count),max=Math.max(...rows.map(r=>r.count),1);
     if(!rows.length)return '<div class="command-empty chart-empty">No strategic-pillar alignment is available.</div>'+chartSummary('No initiatives are currently mapped to a strategic pillar.','warning');
     const leader=rows.slice().sort((a,b)=>b.budget-a.budget)[0],totalBudget=rows.reduce((s,r)=>s+r.budget,0),share=totalBudget?Math.round(leader.budget/totalBudget*100):0;
-    return `<div class="strategic-bars">${rows.map(r=>`<div class="has-tooltip" data-tooltip="${escapeAttr(r.name+': '+r.count+' initiative'+(r.count===1?'':'s')+', '+money(r.budget)+' Approved Budget')}"><span>${escapeHtml(r.name)}</span><div class="bar-track"><i class="bar-fill" style="width:${r.count/max*100}%"></i></div><strong>${r.count} · ${moneyShort(r.budget)}</strong></div>`).join('')}</div>${chartSummary(`${leader.name} has the largest allocation at ${money(leader.budget)}, representing ${share}% of mapped Approved Budget.`,'neutral')}`;
+    return `<div class="strategic-bars">${rows.map(r=>`<button class="strategic-bar-button has-tooltip ${state.dashboardPillar===r.id?'active':''}" data-action="dashboard-pillar" data-pillar="${r.id}" data-tooltip="${escapeAttr(r.name+': '+r.count+' initiative'+(r.count===1?'':'s')+', '+money(r.budget)+' Approved Budget')}"><span>${escapeHtml(r.name)}</span><div class="bar-track"><i class="bar-fill" style="width:${r.count/max*100}%"></i></div><strong>${r.count} · ${moneyShort(r.budget)}</strong></button>`).join('')}</div>${chartSummary(`${leader.name} has the largest allocation at ${money(leader.budget)}, representing ${share}% of mapped Approved Budget.`,'neutral')}`;
   }
   function renderDataQuality(initiatives){
     const total=initiatives.length||1,percentOf=fn=>Math.round(initiatives.filter(fn).length/total*100),evidenceAvg=initiatives.length?Math.round(initiatives.reduce((s,i)=>s+evidenceScore(i.formData||{}),0)/initiatives.length):0;
-    const metrics=[['Ownership',percentOf(i=>String(i.formData?.projectOwnerName||i.owner||'').trim())],['Approved Budget',percentOf(i=>numberOrNull(i.formData?.approvedBudget??i.approvedBudget)!==null)],['Target date',percentOf(i=>!!(i.formData?.targetDate||i.targetDate))],['CBA',percentOf(i=>governedCba(i)!==null)],['Evidence',evidenceAvg],['Next action',percentOf(i=>String(i.formData?.nextAction||'').trim())],['HR assessment',percentOf(i=>!!i.formData?.hrReviewStatus)],['ICT assessment',percentOf(i=>!!i.formData?.ictClassification)]];
-    return `<div class="quality-grid">${metrics.map(([label,value])=>`<article class="has-tooltip" data-tooltip="${escapeAttr(label+' completeness across initiative records in the current scope: '+value+'%')}"><span>${escapeHtml(label)}</span><strong>${value}%</strong><div class="bar-track"><i class="bar-fill" style="width:${value}%"></i></div></article>`).join('')}</div>`;
+    const metrics=[['ownership','Ownership',percentOf(i=>String(i.formData?.projectOwnerName||i.owner||'').trim())],['budget','Approved Budget',percentOf(i=>numberOrNull(i.formData?.approvedBudget??i.approvedBudget)!==null)],['target','Target date',percentOf(i=>!!(i.formData?.targetDate||i.targetDate))],['cba','CBA',percentOf(i=>governedCba(i)!==null)],['evidence','Evidence',evidenceAvg],['next-action','Next action',percentOf(i=>String(i.formData?.nextAction||'').trim())],['hr','HR assessment',percentOf(i=>!!i.formData?.hrReviewStatus)],['ict','ICT assessment',percentOf(i=>!!i.formData?.ictClassification)]];
+    return `<div class="quality-grid">${metrics.map(([key,label,value])=>`<button class="quality-action has-tooltip ${state.dashboardQuality===key?'active':''}" data-action="dashboard-quality" data-quality="${key}" data-tooltip="${escapeAttr(label+' completeness across initiative records in the current scope: '+value+'%')}"><span>${escapeHtml(label)}</span><strong>${value}%</strong><div class="bar-track"><i class="bar-fill" style="width:${value}%"></i></div></button>`).join('')}</div>`;
   }
   function renderDashboardDeliveryRegister(items){
     const visible=dashboardViewItems(items),scope=dashboardScopeLabel(),emptyLabel=state.dashboardYear==='all'?'No delivery records are available':'No delivery records for AMP '+state.dashboardYear;
@@ -443,7 +477,7 @@
       renderDepartmentMatrix(initiatives,deliveryItems)+
       `<section class="command-section"><div class="command-section-heading"><div><span class="eyebrow">Value & governance</span><h2>Governance coverage and decision assurance</h2><p>Compact coverage indicators with full records available in Value & Governance.</p></div><button class="btn outline compact" data-route="governance">Open Value & Governance</button></div>${renderGovernanceSummary(initiatives)}</section>`+
       `<section class="card panel command-quality-panel"><div class="panel-header"><div><h2>Data Quality Assurance</h2><p>Completeness across core decision and delivery information.</p></div></div>${renderDataQuality(initiatives)}</section>`+
-      renderExecutiveDeliveryRegister(deliveryItems);
+      dashboardActiveFilterBanner(deliveryItems)+renderExecutiveDeliveryRegister(deliveryItems);
   }
 
   function renderDepartmentBudgetBars(items){
@@ -609,8 +643,13 @@
     const route=event.target.closest('[data-route]');if(route){navigate(route.dataset.route);return;}
     const button=event.target.closest('[data-action]');if(!button)return;const action=button.dataset.action,id=button.dataset.id;
     try{
-      if(action==='dashboard-reset'){state.dashboardYear='all';state.dashboardRecordType='all';state.dashboardPillar='all';state.dashboardFit='all';state.dashboardRisk='all';state.dashboardView='all';state.filters.department='all';render();}
+      if(action==='dashboard-reset'){state.dashboardYear='all';state.dashboardRecordType='all';state.dashboardPillar='all';state.dashboardFit='all';state.dashboardRisk='all';state.dashboardView='all';state.dashboardQuarter='all';state.dashboardQuadrant='all';state.dashboardQuality='all';state.filters.department='all';render();}
       else if(action==='dashboard-view'){state.dashboardView=button.dataset.view||'all';const register=document.querySelector('.dashboard-delivery-register');render();setTimeout(()=>document.querySelector('.dashboard-delivery-register')?.scrollIntoView({behavior:'smooth',block:'start'}),20);}
+      else if(action==='dashboard-quarter'){state.dashboardQuarter=state.dashboardQuarter===button.dataset.quarter?'all':button.dataset.quarter;render();setTimeout(()=>document.querySelector('.executive-delivery-register')?.scrollIntoView({behavior:'smooth',block:'start'}),20);}
+      else if(action==='dashboard-quadrant'){state.dashboardQuadrant=state.dashboardQuadrant===button.dataset.quadrant?'all':button.dataset.quadrant;render();setTimeout(()=>document.querySelector('.executive-delivery-register')?.scrollIntoView({behavior:'smooth',block:'start'}),20);}
+      else if(action==='dashboard-quality'){state.dashboardQuality=state.dashboardQuality===button.dataset.quality?'all':button.dataset.quality;render();setTimeout(()=>document.querySelector('.executive-delivery-register')?.scrollIntoView({behavior:'smooth',block:'start'}),20);}
+      else if(action==='dashboard-pillar'){state.dashboardPillar=state.dashboardPillar===button.dataset.pillar?'all':button.dataset.pillar;render();setTimeout(()=>document.querySelector('.executive-delivery-register')?.scrollIntoView({behavior:'smooth',block:'start'}),20);}
+      else if(action==='dashboard-clear-interactions'){state.dashboardView='all';state.dashboardQuarter='all';state.dashboardQuadrant='all';state.dashboardQuality='all';render();}
       else if(action==='retry-data-load'){state.data=await loadWithSpinner();if(state.data){const active=state.data.reportingYears.find(y=>y.active)||state.data.reportingYears.slice().sort((a,b)=>b.year-a.year)[0];state.filters.year=active?active.year:new Date().getFullYear();state.dashboardYear='all';render();}}
       else if(action==='new-initiative')openInitiativeModal();
       else if(action==='edit-initiative')openInitiativeModal(state.data.initiatives.find(i=>i.id===id));
@@ -669,8 +708,8 @@ This will also delete them from the database and cannot be undone. Export the CS
 
   function handlePageChange(event){
     if(event.target.hasAttribute('data-admin-user-filter')){const key=event.target.dataset.adminUserFilter;state.adminUserFilters[key]=event.target.value;render();return;}
-    if(event.target.hasAttribute('data-dashboard-year')){state.dashboardYear=event.target.value==='all'?'all':Number(event.target.value);state.dashboardView='all';render();return;}
-    if(event.target.hasAttribute('data-dashboard-filter')){const key=event.target.dataset.dashboardFilter,value=event.target.value;if(key==='recordType')state.dashboardRecordType=value;else if(key==='pillar')state.dashboardPillar=value;else if(key==='fit')state.dashboardFit=value;else if(key==='risk')state.dashboardRisk=value;state.dashboardView='all';render();return;}
+    if(event.target.hasAttribute('data-dashboard-year')){state.dashboardYear=event.target.value==='all'?'all':Number(event.target.value);state.dashboardView='all';state.dashboardQuarter='all';state.dashboardQuadrant='all';state.dashboardQuality='all';render();return;}
+    if(event.target.hasAttribute('data-dashboard-filter')){const key=event.target.dataset.dashboardFilter,value=event.target.value;if(key==='recordType')state.dashboardRecordType=value;else if(key==='pillar')state.dashboardPillar=value;else if(key==='fit')state.dashboardFit=value;else if(key==='risk')state.dashboardRisk=value;state.dashboardView='all';state.dashboardQuarter='all';state.dashboardQuadrant='all';state.dashboardQuality='all';render();return;}
     if(event.target.hasAttribute('data-governance-year')){state.governanceYear=event.target.value==='all'?'all':Number(event.target.value);render();return;}
     if(event.target.hasAttribute('data-governance-view')){state.governanceView=event.target.value;render();return;}
     const filter=event.target.dataset.filter;if(filter){state.filters[filter]=filter==='year'?Number(event.target.value):event.target.value;render();return;}
@@ -944,7 +983,7 @@ This will also delete them from the database and cannot be undone. Export the CS
     if(!isSuperAdmin){
       openModal('Manage User','Access Administration',`<div class="profile-details"><div class="detail-box"><small>Name</small><strong>${escapeHtml(user.name)}</strong></div><div class="detail-box"><small>Email</small><strong>${escapeHtml(user.email)}</strong></div><div class="detail-box"><small>Department</small><strong>${user.departmentId?escapeHtml(departmentName(user.departmentId)):'Unassigned'}</strong></div><div class="detail-box"><small>Role</small><strong>${escapeHtml(api.roleLabel(user.role))}</strong></div><div class="detail-box"><small>Status</small><strong>${statusBadge(user.status)}</strong></div></div><div class="modal-actions" style="justify-content:flex-start"><button class="btn outline" data-user-status="ACTIVE">Reactivate</button><button class="btn secondary" data-user-status="FROZEN">Freeze</button><button class="btn danger" data-user-status="REVOKED">Revoke access</button></div>`);
     }else{
-      openModal('Edit User','Super Administrator',`<form id="manage-user-form"><div class="admin-modal-intro"><strong>Edit HOME31 user access</strong><span>Super Administrators may update the user's identity, department and assigned role.</span></div><div class="form-grid"><label class="field"><span>Full name</span><input name="name" required value="${escapeAttr(user.name||'')}"></label><label class="field"><span>Email</span><input name="email" type="email" required value="${escapeAttr(user.email||'')}"></label><label class="field"><span>Department</span><select name="departmentId" required><option value="">Choose department</option>${departmentOptions(user.departmentId,false)}</select></label><label class="field"><span>Role</span><select name="role" required>${allowedRoles.map(role=>`<option value="${role}" ${user.role===role?'selected':''}>${escapeHtml(api.roleLabel(role))}</option>`).join('')}</select></label></div><div class="alert info">Changes are applied to Supabase Authentication and the HOME31 profile and role records.</div><div class="modal-actions"><button type="button" class="btn secondary" data-modal-close>Cancel</button><button class="btn primary" type="submit">Save Changes</button></div></form><div class="modal-actions" style="justify-content:flex-start;border-top:1px solid var(--border);padding-top:16px"><button class="btn outline" data-user-status="ACTIVE">Reactivate</button><button class="btn secondary" data-user-status="FROZEN">Freeze</button><button class="btn danger" data-user-status="REVOKED">Revoke access</button></div>`);
+      openModal('Edit User','Super Administrator',`<form id="manage-user-form"><div class="admin-modal-intro"><strong>Edit HOME31 user access</strong><span>Super Administrators may update the user's identity, department and assigned role.</span></div><div class="form-grid"><label class="field"><span>Full name</span><input name="name" required value="${escapeAttr(user.name||'')}"></label><label class="field"><span>Email</span><input name="email" type="email" required value="${escapeAttr(user.email||'')}"></label><label class="field"><span>Department</span><select name="departmentId" required><option value="">Choose department</option>${departmentOptions(user.departmentId,false)}</select></label><label class="field"><span>Role</span><select name="role" required>${allowedRoles.map(role=>`<option value="${role}" ${user.role===role?'selected':''}>${escapeHtml(api.roleLabel(role))}</option>`).join('')}</select></label></div><div class="alert info">Changes are applied to Supabase Authentication and the HOME31 profile and role records.</div><div class="modal-actions"><button type="button" class="btn secondary" data-modal-close>Cancel</button><button class="btn primary" type="submit">Save Changes</button></div></form><div class="modal-actions admin-account-actions" style="justify-content:flex-start;border-top:1px solid var(--line);padding-top:16px"><button class="btn primary" type="button" data-reset-user-password>Reset Password</button><button class="btn outline" data-user-status="ACTIVE">Reactivate</button><button class="btn secondary" data-user-status="FROZEN">Freeze</button><button class="btn danger" data-user-status="REVOKED">Revoke access</button></div>`);
       bindModalClose();
 
       document.getElementById('manage-user-form').addEventListener('submit',async event=>{
@@ -969,6 +1008,9 @@ This will also delete them from the database and cannot be undone. Export the CS
         await refreshData();
         toast('User details updated.','success');
       });
+
+      const resetButton=el.modalContent.querySelector('[data-reset-user-password]');
+      if(resetButton)resetButton.addEventListener('click',()=>openAdminPasswordResetModal(user));
     }
 
     el.modalContent.querySelectorAll('[data-user-status]').forEach(button=>button.addEventListener('click',async()=>{
@@ -978,6 +1020,33 @@ This will also delete them from the database and cannot be undone. Export the CS
       toast('Account status updated.','success');
     }));
   }
+  function generateTemporaryPassword(){
+    const upper='ABCDEFGHJKLMNPQRSTUVWXYZ',lower='abcdefghijkmnopqrstuvwxyz',digits='23456789',symbols='!@#$%';
+    const pick=chars=>chars[Math.floor(Math.random()*chars.length)],all=upper+lower+digits+symbols;
+    const chars=[pick(upper),pick(lower),pick(digits),pick(symbols)];
+    while(chars.length<14)chars.push(pick(all));
+    for(let i=chars.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[chars[i],chars[j]]=[chars[j],chars[i]];}
+    return chars.join('');
+  }
+  function openAdminPasswordResetModal(user){
+    if(!user||state.user.role!=='SUPER_ADMIN')return;
+    const generated=generateTemporaryPassword();
+    openModal('Reset User Password','Super Administrator',`<form id="admin-password-reset-form"><div class="admin-modal-intro"><strong>Issue a temporary password</strong><span>Reset the password for ${escapeHtml(user.name||user.email)}. The previous password is never displayed and will stop working immediately.</span></div><div class="alert warning"><strong>Share securely.</strong> The temporary password is visible only in this form and should not be sent through an open or shared channel.</div><label class="field"><span>Temporary password</span><div class="password-reset-input-row"><input id="admin-temp-password" name="password" type="text" minlength="10" required autocomplete="new-password" value="${escapeAttr(generated)}"><button class="btn outline compact" type="button" data-generate-temp-password>Generate</button></div><small>Minimum 10 characters. Use a unique value for every reset.</small></label><label class="field"><span>Confirm temporary password</span><input name="confirm" type="text" minlength="10" required autocomplete="new-password" value="${escapeAttr(generated)}"></label><label class="checkbox password-reset-force"><input name="mustChangePassword" type="checkbox" checked> Require the user to change this password at the next login</label><div class="password-reset-user-summary"><div><small>User</small><strong>${escapeHtml(user.name||'Unnamed user')}</strong></div><div><small>Email</small><strong>${escapeHtml(user.email||'Not recorded')}</strong></div></div><div class="modal-actions"><button type="button" class="btn secondary" data-modal-close>Cancel</button><button class="btn primary" type="submit">Reset Password</button></div></form>`);
+    bindModalClose();
+    const form=document.getElementById('admin-password-reset-form'),passwordInput=document.getElementById('admin-temp-password');
+    form.querySelector('[data-generate-temp-password]').addEventListener('click',()=>{const value=generateTemporaryPassword();passwordInput.value=value;form.elements.confirm.value=value;passwordInput.focus();passwordInput.select();});
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();
+      const f=formObject(form),password=String(f.password||''),confirm=String(f.confirm||'');
+      if(password.length<10)throw new Error('Use at least 10 characters for the temporary password.');
+      if(password!==confirm)throw new Error('The temporary passwords do not match.');
+      await withSubmit(form,()=>api.resetUserPassword({userId:user.id,temporaryPassword:password,mustChangePassword:form.elements.mustChangePassword.checked},state.user));
+      closeModal();
+      await refreshData();
+      toast('Temporary password issued. The user must change it at next login.','success');
+    });
+  }
+
   function openDepartmentModal(item){item=item||{code:'',name:'',active:true};openModal(item.id?'Edit Department':'Create Department','Organisation',`<form id="department-form"><div class="form-grid"><label class="field"><span>Department code</span><input name="code" required value="${escapeAttr(item.code)}"></label><label class="field"><span>Department name</span><input name="name" required value="${escapeAttr(item.name)}"></label><label class="checkbox span-2"><input name="active" type="checkbox" ${item.active!==false?'checked':''}> Active department</label></div><div class="modal-actions"><button type="button" class="btn secondary" data-modal-close>Cancel</button><button class="btn primary" type="submit">Save Department</button></div></form>`);bindModalClose();document.getElementById('department-form').addEventListener('submit',async event=>{event.preventDefault();const f=formObject(event.target);await withSubmit(event.target,()=>api.saveDepartment(Object.assign({},item,{code:f.code.trim().toUpperCase(),name:f.name.trim(),active:event.target.elements.active.checked}),state.user));closeModal();await refreshData();toast('Department saved.','success');});}
   function openYearModal(item){item=item||{year:new Date().getFullYear()+1,label:'',active:false};openModal(item.id?'Edit Reporting Year':'Create Reporting Year','Annual Planning',`<form id="year-form"><div class="form-grid"><label class="field"><span>Year</span><input name="year" type="number" min="2020" max="2100" required value="${item.year}"></label><label class="field"><span>Label</span><input name="label" required value="${escapeAttr(item.label||('AMP '+item.year))}"></label><label class="checkbox span-2"><input name="active" type="checkbox" ${item.active?'checked':''}> Set as active planning year</label></div><div class="modal-actions"><button type="button" class="btn secondary" data-modal-close>Cancel</button><button class="btn primary" type="submit">Save Year</button></div></form>`);bindModalClose();document.getElementById('year-form').addEventListener('submit',async event=>{event.preventDefault();const f=formObject(event.target);await withSubmit(event.target,()=>api.saveYear(Object.assign({},item,{year:Number(f.year),label:f.label.trim(),active:event.target.elements.active.checked}),state.user));closeModal();await refreshData();toast('Reporting year saved.','success');});}
   function openPasswordModal(forced){openModal(forced?'Set a new password':'Change Password',forced?'First Login Security':'Account Security',`<form id="password-form"><div class="alert ${forced?'info':'success'}">${forced?'You must replace the temporary password before using HOME31.':'Use a strong password with at least 10 characters.'}</div><label class="field"><span>New password</span><input name="password" type="password" minlength="10" required autocomplete="new-password"></label><label class="field"><span>Confirm password</span><input name="confirm" type="password" minlength="10" required autocomplete="new-password"></label><div class="modal-actions">${forced?'':'<button type="button" class="btn secondary" data-modal-close>Cancel</button>'}<button class="btn primary" type="submit">Update Password</button></div></form>`);if(!forced)bindModalClose();else el.modalClose.classList.add('hidden');document.getElementById('password-form').addEventListener('submit',async event=>{event.preventDefault();const f=formObject(event.target);if(f.password!==f.confirm)throw new Error('The passwords do not match.');state.user=await withSubmit(event.target,()=>api.changePassword(state.user,f.password));el.modalClose.classList.remove('hidden');closeModal();el.userRole.textContent=state.user.roleLabel;toast('Password updated.','success');});}
