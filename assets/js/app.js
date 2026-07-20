@@ -646,24 +646,31 @@
         <button class="btn outline compact" data-action="management-attention-reset" ${activeFilters?'':'disabled'}>Reset filters</button>
       </div>
 
-      <div class="table-wrap">
-        <table class="priority-issues-table">
-          <thead><tr><th>Management Priority</th><th>Project Name</th><th>Issue</th><th>Project Owner</th><th class="amount">Budget Approved</th><th>Due Date</th></tr></thead>
-          <tbody>${visibleRows.length?visibleRows.map(({i,issueEntries})=>{
+      <div class="priority-issues-register" role="table" aria-label="Priority Issues register">
+        <div class="priority-issues-grid priority-issues-grid-head" role="row">
+          <div role="columnheader">Management Priority</div>
+          <div role="columnheader">Project Name</div>
+          <div role="columnheader">Issue</div>
+          <div role="columnheader">Project Owner</div>
+          <div role="columnheader" class="amount">Budget Approved</div>
+          <div role="columnheader">Due Date</div>
+        </div>
+        <div class="priority-issues-grid-body" role="rowgroup">
+          ${visibleRows.length?visibleRows.map(({i,issueEntries})=>{
             const rowClass=i.health==='CRITICAL'?'critical':i.health==='WATCH'?'watch':'stable';
             const managementPriority=String(i.managementPriority||'Not Assessed');
             const projectOwner=i.projectOwner||i.owner||'Unassigned';
             const approvedBudget=Number(i.approvedBudget??i.formData?.approvedBudget??0);
-            return `<tr class="has-tooltip priority-issue-row ${rowClass}" data-tooltip="${escapeAttr(`${i.title}: ${issueEntries.map(entry=>entry.label).join('; ')}`)}">
-              <td>${statusBadge(managementPriority.toUpperCase().replace(/\s+/g,'_'))}</td>
-              <td><strong>${escapeHtml(i.title)}</strong><br><span class="muted">${escapeHtml(i.code||'Pending code')} · AMP ${i.year} · ${escapeHtml(pretty(i.sourceType))}<br>${escapeHtml(i.departmentName||departmentName(i.departmentId)||'Unassigned department')}</span></td>
-              <td><div class="priority-issue-chips">${issueEntries.map(entry=>`<span class="decision-chip issue-${escapeAttr(entry.category)}">${escapeHtml(entry.label)}</span>`).join('')}</div></td>
-              <td>${escapeHtml(projectOwner)}</td>
-              <td class="amount">${money(approvedBudget)}</td>
-              <td>${i.targetDate?formatDate(i.targetDate):'<span class="muted">Not set</span>'}</td>
-            </tr>`;
-          }).join(''):`<tr><td colspan="6"><div class="empty-state compact"><strong>${baseRows.length?'No matching priority issues':'No priority issues identified'}</strong>${baseRows.length?'Adjust or reset the Priority Issues filters.':'All visible delivery records are within the current automated controls.'}</div></td></tr>`}</tbody>
-        </table>
+            return `<div class="has-tooltip priority-issues-grid priority-issue-row ${rowClass}" role="row" data-tooltip="${escapeAttr(`${i.title}: ${issueEntries.map(entry=>entry.label).join('; ')}`)}">
+              <div class="priority-cell priority-management" role="cell">${statusBadge(managementPriority.toUpperCase().replace(/\s+/g,'_'))}</div>
+              <div class="priority-cell priority-project" role="cell"><strong>${escapeHtml(i.title)}</strong><span class="muted">${escapeHtml(i.code||'Pending code')} · AMP ${i.year} · ${escapeHtml(pretty(i.sourceType))}</span><span class="muted">${escapeHtml(i.departmentName||departmentName(i.departmentId)||'Unassigned department')}</span></div>
+              <div class="priority-cell priority-issues" role="cell"><div class="priority-issue-chips">${issueEntries.map(entry=>`<span class="decision-chip issue-${escapeAttr(entry.category)}">${escapeHtml(entry.label)}</span>`).join('')}</div></div>
+              <div class="priority-cell priority-owner" role="cell">${escapeHtml(projectOwner)}</div>
+              <div class="priority-cell priority-budget amount" role="cell">${money(approvedBudget)}</div>
+              <div class="priority-cell priority-due" role="cell">${i.targetDate?formatDate(i.targetDate):'<span class="muted">Not set</span>'}</div>
+            </div>`;
+          }).join(''):`<div class="priority-issues-empty"><div class="empty-state compact"><strong>${baseRows.length?'No matching priority issues':'No priority issues identified'}</strong>${baseRows.length?'Adjust or reset the Priority Issues filters.':'All visible delivery records are within the current automated controls.'}</div></div>`}
+        </div>
       </div>
     </section>`;
   }
