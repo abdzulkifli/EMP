@@ -7,7 +7,32 @@
   <meta name="description" content="HOME31 enterprise portfolio, initiative, project and budget dashboard">
   <title>HOME31 Executive Command Center</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="assets/css/styles.css?v=9.2-budget-rpc-fix-2">
+  <link rel="stylesheet" href="assets/css/styles.css?v=9.3-priority-issues">
+
+  <style id="home31-priority-issues-v93">
+    .priority-issues-panel{overflow:hidden}
+    .priority-issues-heading{align-items:flex-start;gap:18px}
+    .priority-issues-heading>div{display:grid;gap:3px}
+    .priority-issues-heading .eyebrow{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted,#708495)}
+    .priority-issues-heading strong{font-size:20px;line-height:1.2}
+    .priority-issues-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:0 18px 16px}
+    .priority-issues-summary>div{display:grid;grid-template-columns:1fr auto;gap:3px 12px;align-items:center;padding:12px 14px;border:1px solid var(--line,var(--border,#d9e0e5));border-radius:12px;background:var(--surface-soft,#f7f9fa)}
+    .priority-issues-summary span{font-size:12px;font-weight:750;text-transform:uppercase;letter-spacing:.06em}
+    .priority-issues-summary strong{grid-row:1/3;grid-column:2;font-size:24px;line-height:1}
+    .priority-issues-summary small{font-size:12px;color:var(--muted,#708495)}
+    .priority-issues-summary .critical{border-left:4px solid #b84f59}.priority-issues-summary .watch{border-left:4px solid #c09236}.priority-issues-summary .overdue{border-left:4px solid #9e5b64}.priority-issues-summary .decision{border-left:4px solid #4d8190}
+    .management-attention-filters{display:grid;grid-template-columns:minmax(240px,1.5fr) repeat(4,minmax(150px,1fr)) auto;gap:10px;align-items:end;padding:15px 18px;border-top:1px solid var(--line,var(--border,#d9e0e5));border-bottom:1px solid var(--line,var(--border,#d9e0e5));background:var(--surface-soft,#f7f9fa)}
+    .management-attention-filters label{display:grid;gap:5px;min-width:0}.management-attention-filters label>span{font-size:11px;font-weight:750;letter-spacing:.05em;text-transform:uppercase;color:var(--muted,#708495)}
+    .management-attention-filters input,.management-attention-filters select{width:100%;min-height:39px}.management-attention-filters button{min-height:39px;white-space:nowrap}
+    .priority-issues-table{min-width:1500px}.priority-issues-table th:nth-child(1){width:105px}.priority-issues-table th:nth-child(2){min-width:245px}.priority-issues-table th:nth-child(3){min-width:180px}.priority-issues-table th:nth-child(4){min-width:260px}.priority-issues-table th:nth-child(5){min-width:160px}.priority-issues-table th:nth-child(8){min-width:260px}
+    .priority-issue-row.critical{box-shadow:inset 4px 0 0 #b84f59}.priority-issue-row.watch{box-shadow:inset 4px 0 0 #c09236}.priority-issue-row.stable{box-shadow:inset 4px 0 0 #6c9c92}
+    .priority-issue-chips{display:flex;flex-wrap:wrap;gap:5px}.priority-issue-chips .decision-chip{margin:0}.priority-issue-chips .issue-overdue,.priority-issue-chips .issue-ownership,.priority-issue-chips .issue-target{border-color:rgba(184,79,89,.28)}
+    .priority-required-action{display:grid;grid-template-columns:minmax(130px,1fr) auto;gap:9px;align-items:center}.priority-required-action>span{font-size:12px;line-height:1.45;color:var(--text,#243746)}.priority-required-action .action-button{white-space:nowrap}
+    @media(max-width:1300px){.management-attention-filters{grid-template-columns:repeat(3,minmax(0,1fr))}.management-attention-search{grid-column:span 2}}
+    @media(max-width:900px){.priority-issues-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.management-attention-filters{grid-template-columns:1fr 1fr}.management-attention-search{grid-column:1/-1}}
+    @media(max-width:560px){.priority-issues-summary,.management-attention-filters{grid-template-columns:1fr}.management-attention-search{grid-column:auto}}
+    @media print{.management-attention-filters{display:none!important}.priority-issues-table{min-width:0;font-size:9px}}
+  </style>
 </head>
 <body>
   <noscript><div class="fatal">HOME31 requires JavaScript to run.</div></noscript>
@@ -36,7 +61,7 @@
         <label class="field"><span>Password</span><input id="login-password" type="password" autocomplete="current-password" placeholder="Enter your password" required></label>
         <button class="btn primary wide" type="submit">Sign in</button>
         <div class="login-author-credit" aria-label="Application identity and author">
-          <span>HOME31 Enterprise Portfolio Management · Version 9.0</span>
+          <span>HOME31 Enterprise Portfolio Management · Version 9.3</span>
           <strong>Live Production</strong>
           <small>Author &amp; Developer: Abdullah Zulkifli</small>
           <small>Corporate Planning &amp; Strategy</small>
@@ -64,7 +89,7 @@
     </div>
 
     <main id="page-root" class="page-root" tabindex="-1"></main>
-    <footer class="footer"><span>HOME31 v9.0 · Live Production</span><span id="footer-mode">Developed by Abdullah Zulkifli · Corporate Planning &amp; Strategy</span></footer>
+    <footer class="footer"><span>HOME31 v9.3 · Live Production</span><span id="footer-mode">Developed by Abdullah Zulkifli · Corporate Planning &amp; Strategy</span></footer>
   </div>
 
   <div id="modal-layer" class="modal-layer hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -79,7 +104,7 @@
 
   <script src="config.js"></script>
   <script src="assets/js/data.js?v=7.1"></script>
-  <script src="assets/js/api.js?v=9.2-budget-rpc-fix-2"></script>
-  <script src="assets/js/app.js?v=9.2-budget-rpc-fix-2"></script>
+  <script src="assets/js/api.js?v=9.3-priority-issues"></script>
+  <script src="assets/js/app.js?v=9.3-priority-issues"></script>
 </body>
 </html>
