@@ -237,12 +237,12 @@
         risk:d.overallRiskLevel||displayRisk(i.priority),startDate:d.startDate||i.startDate||'',targetDate:d.targetDate||i.targetDate||'',budget:Number(d.approvedBudget??i.approvedBudget??0),spent:Number(i.utilisedBudget||0),
         description:d.projectDescription||i.description||'',nextAction:d.nextAction||'',initiativeTitle:i.title,formData:d,cba:governedCba(i),cbaValidationStatus:cbaStatus(i),benefitStatus:benefitStatus(i),benefitActual:benefitActual(i),decisionReadinessStatus:phase3(i).decisionReadinessStatus||'',decisionReadinessScore:readinessScore(i),managementTreatment:phase3(i).managementTreatment||'',financeReportingDate:phase3(i).financeReportingDate||'',evidence:evidenceScore(d),
         hrReview:d.hrReviewStatus||'Not submitted',ictReview:d.ictClassification||'Not assessed',pillarId:d.strategicPillarId||i.strategicPillarId,pillarName:pillar?.name||i.strategicPillarName||'Not assigned',
-        home31Fit:d.home31FitDecision||'Derived automatically',managementPriority:d.managementPriority||'Not Assessed',priorityStatus:d.priorityStatus||'Not Assessed',projectOwner:d.projectOwnerName||i.owner||'Unassigned',postChallengeBudget:numberOrNull(d.postChallengeEstimatedCost),approvedBudget:Number(d.approvedBudget??i.approvedBudget??0),decisions:initiativeDecisionItems(i),rolesAffected:Number(d.rolesAffected||0)
+        home31Fit:d.home31FitDecision||'Derived automatically',managementPriority:String(d.managementPriority||'').trim(),priorityStatus:d.priorityStatus||'Not Assessed',projectOwner:d.projectOwnerName||i.owner||'Unassigned',postChallengeBudget:numberOrNull(d.postChallengeEstimatedCost),approvedBudget:Number(d.approvedBudget??i.approvedBudget??0),decisions:initiativeDecisionItems(i),rolesAffected:Number(d.rolesAffected||0)
       };
     });
     const projects=sourceProjects.map(p=>{
       const initiative=state.data.initiatives.find(i=>i.id===p.initiativeId),d=initiative?.formData||{},parent=initiatives.find(i=>i.initiativeId===p.initiativeId);
-      return Object.assign({},p,{sourceType:'PROJECT',readiness:Number(d.readiness||0),risk:d.overallRiskLevel||'',nextAction:d.nextAction||'',initiativeTitle:p.initiativeTitle||initiative?.title||initiativeTitle(p.initiativeId),cba:governedCba(initiative),cbaValidationStatus:cbaStatus(initiative),benefitStatus:benefitStatus(initiative),benefitActual:benefitActual(initiative),decisionReadinessStatus:phase3(initiative).decisionReadinessStatus||'',decisionReadinessScore:readinessScore(initiative),managementTreatment:phase3(initiative).managementTreatment||'',financeReportingDate:phase3(initiative).financeReportingDate||'',evidence:evidenceScore(d),hrReview:d.hrReviewStatus||'Not submitted',ictReview:d.ictClassification||'Not assessed',pillarId:d.strategicPillarId||initiative?.strategicPillarId,pillarName:parent?.pillarName||initiative?.strategicPillarName||'Not assigned',home31Fit:d.home31FitDecision||'Derived automatically',managementPriority:d.managementPriority||parent?.managementPriority||'Not Assessed',priorityStatus:d.priorityStatus||'Not Assessed',projectOwner:p.owner||parent?.projectOwner||d.projectOwnerName||'Unassigned',postChallengeBudget:numberOrNull(d.postChallengeEstimatedCost),approvedBudget:Number(d.approvedBudget??initiative?.approvedBudget??0),decisions:parent?.decisions||[],rolesAffected:Number(d.rolesAffected||0),health:projectCommandHealth(p,parent)});
+      return Object.assign({},p,{sourceType:'PROJECT',readiness:Number(d.readiness||0),risk:d.overallRiskLevel||'',nextAction:d.nextAction||'',initiativeTitle:p.initiativeTitle||initiative?.title||initiativeTitle(p.initiativeId),cba:governedCba(initiative),cbaValidationStatus:cbaStatus(initiative),benefitStatus:benefitStatus(initiative),benefitActual:benefitActual(initiative),decisionReadinessStatus:phase3(initiative).decisionReadinessStatus||'',decisionReadinessScore:readinessScore(initiative),managementTreatment:phase3(initiative).managementTreatment||'',financeReportingDate:phase3(initiative).financeReportingDate||'',evidence:evidenceScore(d),hrReview:d.hrReviewStatus||'Not submitted',ictReview:d.ictClassification||'Not assessed',pillarId:d.strategicPillarId||initiative?.strategicPillarId,pillarName:parent?.pillarName||initiative?.strategicPillarName||'Not assigned',home31Fit:d.home31FitDecision||'Derived automatically',managementPriority:String(d.managementPriority||parent?.managementPriority||'').trim(),priorityStatus:d.priorityStatus||'Not Assessed',projectOwner:p.owner||parent?.projectOwner||d.projectOwnerName||'Unassigned',postChallengeBudget:numberOrNull(d.postChallengeEstimatedCost),approvedBudget:Number(d.approvedBudget??initiative?.approvedBudget??0),decisions:parent?.decisions||[],rolesAffected:Number(d.rolesAffected||0),health:projectCommandHealth(p,parent)});
     });
     return initiatives.concat(projects).sort((a,b)=>Number(b.year)-Number(a.year)||String(a.sourceType).localeCompare(String(b.sourceType))||String(a.title).localeCompare(String(b.title)));
   }
@@ -516,12 +516,15 @@
     return `<div class="investment-position-chart">${rows.map(([label,value,tip])=>`<div class="investment-row has-tooltip" data-tooltip="${escapeAttr(tip+' Current value: '+money(value))}"><span>${label}</span><div class="investment-track"><i style="width:${value?Math.max(3,value/max*100):0}%"></i></div><strong>${moneyShort(value)}</strong></div>`).join('')}</div>${chartSummary(summary,variance>0?'warning':utilisation>90?'warning':'neutral')}`;
   }
 
-  function managementOverviewPriority(item,categories){
-    if(item.health==='CRITICAL')return {label:'Critical',klass:'red',rank:5};
-    if(isOverdue(item))return {label:'Overdue',klass:'red',rank:4};
-    if(categories.has('decision'))return {label:'Decision',klass:'amber',rank:3};
-    if(item.health==='WATCH')return {label:'Watch',klass:'amber',rank:2};
-    return {label:'Attention',klass:'blue',rank:1};
+  function managementOverviewPriority(item){
+    const raw=String(item.managementPriority||'').trim();
+    const canonical={
+      strategic:{label:'Strategic',code:'STRATEGIC',rank:1},
+      high:{label:'High',code:'HIGH',rank:2},
+      medium:{label:'Medium',code:'MEDIUM',rank:3},
+      operational:{label:'Operational',code:'OPERATIONAL',rank:4}
+    };
+    return canonical[raw.toLowerCase()]||{label:'Not recorded',code:'NOT_RECORDED',rank:5};
   }
   function managementOverviewSort(rows){
     const direction=state.managementOverviewDirection==='asc'?1:-1,key=state.managementOverviewSort;
@@ -560,7 +563,7 @@
       const unique=[],seen=new Set();
       issueEntries.forEach(entry=>{const key=entry.category+'|'+entry.label;if(!seen.has(key)){seen.add(key);unique.push(entry);}});
       const categories=new Set(unique.map(entry=>entry.category));
-      return {i,issueEntries:unique,categories,priority:managementOverviewPriority(i,categories)};
+      return {i,issueEntries:unique,categories,priority:managementOverviewPriority(i)};
     }).filter(row=>row.issueEntries.length);
 
     const departmentRows=[...new Map(baseRows.map(({i})=>{
@@ -570,7 +573,7 @@
 
     const query=String(state.managementAttentionSearch||'').trim().toLowerCase();
     const filteredRows=baseRows.filter(({i,issueEntries,categories})=>{
-      const managementPriority=String(i.managementPriority||'Not Assessed').toLowerCase();
+      const managementPriority=String(i.managementPriority||'').trim().toLowerCase()||'not recorded';
       if(state.managementAttentionPriority!=='all'&&managementPriority!==String(state.managementAttentionPriority).toLowerCase())return false;
       if(state.managementAttentionIssue!=='all'&&!categories.has(state.managementAttentionIssue))return false;
       const itemDepartment=String(i.departmentId||i.departmentName||'unassigned');
@@ -601,7 +604,7 @@
 
     return `<section class="card table-card executive-attention-table management-overview-panel">
       <div class="table-header management-overview-heading">
-        <div><strong>Management Overview</strong><span class="dashboard-table-note">Critical, overdue, decision-required and watch records in the selected Command Centre scope.</span></div>
+        <div><strong>Management Overview</strong><span class="dashboard-table-note">Management Priority uses the saved initiative dropdown value: Strategic, High, Medium or Operational. Blank records are shown as Not recorded.</span></div>
         <div class="management-overview-tools"><span class="badge ${filteredRows.length?'amber':'green'}">${filteredRows.length} of ${baseRows.length} records</span><label><span>Rows</span><select data-management-overview-page-size><option value="5" ${pageSize===5?'selected':''}>5</option><option value="10" ${pageSize===10?'selected':''}>10</option><option value="15" ${pageSize===15?'selected':''}>15</option></select></label></div>
       </div>
       <div class="priority-issues-summary" aria-label="Management overview summary">
@@ -612,14 +615,14 @@
       </div>
       <div class="management-attention-filters">
         <label class="management-attention-search"><span>Search Management Overview</span><input type="search" data-management-attention-search value="${escapeAttr(state.managementAttentionSearch||'')}" placeholder="Project, owner, department or code"></label>
-        <label><span>Management priority</span><select data-management-attention-filter="priority"><option value="all" ${state.managementAttentionPriority==='all'?'selected':''}>All management priorities</option><option value="strategic" ${state.managementAttentionPriority==='strategic'?'selected':''}>Strategic</option><option value="high" ${state.managementAttentionPriority==='high'?'selected':''}>High</option><option value="medium" ${state.managementAttentionPriority==='medium'?'selected':''}>Medium</option><option value="operational" ${state.managementAttentionPriority==='operational'?'selected':''}>Operational</option><option value="not assessed" ${state.managementAttentionPriority==='not assessed'?'selected':''}>Not Assessed</option></select></label>
+        <label><span>Management priority</span><select data-management-attention-filter="priority"><option value="all" ${state.managementAttentionPriority==='all'?'selected':''}>All management priorities</option><option value="strategic" ${state.managementAttentionPriority==='strategic'?'selected':''}>Strategic</option><option value="high" ${state.managementAttentionPriority==='high'?'selected':''}>High</option><option value="medium" ${state.managementAttentionPriority==='medium'?'selected':''}>Medium</option><option value="operational" ${state.managementAttentionPriority==='operational'?'selected':''}>Operational</option><option value="not recorded" ${state.managementAttentionPriority==='not recorded'?'selected':''}>Not recorded</option></select></label>
         <label><span>Attention type</span><select data-management-attention-filter="issue"><option value="all" ${state.managementAttentionIssue==='all'?'selected':''}>All attention types</option><option value="delivery" ${state.managementAttentionIssue==='delivery'?'selected':''}>Delivery condition</option><option value="overdue" ${state.managementAttentionIssue==='overdue'?'selected':''}>Overdue</option><option value="decision" ${state.managementAttentionIssue==='decision'?'selected':''}>Decision required</option><option value="next-action" ${state.managementAttentionIssue==='next-action'?'selected':''}>Next action missing</option><option value="ownership" ${state.managementAttentionIssue==='ownership'?'selected':''}>Owner missing</option><option value="target" ${state.managementAttentionIssue==='target'?'selected':''}>Target date missing</option></select></label>
         <label><span>Department</span><select data-management-attention-filter="department"><option value="all">All visible departments</option>${departmentRows.map(department=>`<option value="${escapeAttr(department.id)}" ${String(state.managementAttentionDepartment)===department.id?'selected':''}>${escapeHtml(department.name)}</option>`).join('')}</select></label>
         <label><span>Record type</span><select data-management-attention-filter="type"><option value="all" ${state.managementAttentionType==='all'?'selected':''}>Initiatives + Projects</option><option value="INITIATIVE" ${state.managementAttentionType==='INITIATIVE'?'selected':''}>Initiatives only</option><option value="PROJECT" ${state.managementAttentionType==='PROJECT'?'selected':''}>Projects only</option></select></label>
         <button class="btn outline compact" data-action="management-attention-reset" ${activeFilters?'':'disabled'}>Reset filters</button>
       </div>
       <div class="table-wrap management-overview-table-wrap"><table class="management-overview-table"><thead><tr>
-        <th class="management-sortable${managementOverviewSortClass('priority')}" data-action="management-overview-sort" data-sort="priority">Priority</th>
+        <th class="management-sortable${managementOverviewSortClass('priority')}" data-action="management-overview-sort" data-sort="priority">Management Priority</th>
         <th class="management-sortable management-sticky-project${managementOverviewSortClass('name')}" data-action="management-overview-sort" data-sort="name">Initiative / Project</th>
         <th class="management-sortable${managementOverviewSortClass('owner')}" data-action="management-overview-sort" data-sort="owner">Owner</th>
         <th class="management-sortable${managementOverviewSortClass('department')}" data-action="management-overview-sort" data-sort="department">Department</th>
@@ -631,7 +634,7 @@
         const initiativeRecord=i.sourceType==='INITIATIVE',actionId=initiativeRecord?i.initiativeId:i.id,viewAction=initiativeRecord?'view-initiative':'view-project',editAction=initiativeRecord?'edit-initiative':'edit-project';
         const postChallenge=i.postChallengeBudget===null?'<span class="muted">Not recorded</span>':money(i.postChallengeBudget);
         const approved=Number(i.approvedBudget||0)>0?money(i.approvedBudget):'<span class="muted">Not recorded</span>';
-        return `<tr><td><span class="badge ${priority.klass}">${escapeHtml(priority.label)}</span></td><td class="management-sticky-project"><strong>${escapeHtml(i.title)}</strong><br><span class="muted">${escapeHtml(i.code||'Pending code')} · AMP ${i.year} · ${escapeHtml(pretty(i.sourceType))}</span></td><td>${escapeHtml(i.projectOwner||i.owner||'Unassigned')}</td><td>${escapeHtml(i.departmentName||departmentName(i.departmentId)||'Unassigned department')}</td><td class="amount">${postChallenge}</td><td class="amount">${approved}</td><td>${i.targetDate?formatDate(i.targetDate):'<span class="muted">Not set</span>'}</td><td><div class="management-row-actions"><button class="action-button management-view" data-action="${viewAction}" data-id="${actionId}">View</button>${canEdit?`<button class="action-button management-edit" data-action="${editAction}" data-id="${actionId}">Edit</button>`:''}</div></td></tr>`;
+        return `<tr><td>${statusBadge(priority.code)}</td><td class="management-sticky-project"><strong>${escapeHtml(i.title)}</strong><br><span class="muted">${escapeHtml(i.code||'Pending code')} · AMP ${i.year} · ${escapeHtml(pretty(i.sourceType))}</span></td><td>${escapeHtml(i.projectOwner||i.owner||'Unassigned')}</td><td>${escapeHtml(i.departmentName||departmentName(i.departmentId)||'Unassigned department')}</td><td class="amount">${postChallenge}</td><td class="amount">${approved}</td><td>${i.targetDate?formatDate(i.targetDate):'<span class="muted">Not set</span>'}</td><td><div class="management-row-actions"><button class="action-button management-view" data-action="${viewAction}" data-id="${actionId}">View</button>${canEdit?`<button class="action-button management-edit" data-action="${editAction}" data-id="${actionId}">Edit</button>`:''}</div></td></tr>`;
       }).join(''):`<tr><td colspan="8"><div class="empty-state compact"><strong>${baseRows.length?'No matching management records':'No management attention identified'}</strong>${baseRows.length?'Adjust or reset the Management Overview filters.':'All visible delivery records are within the current automated controls.'}</div></td></tr>`}</tbody></table></div>
       <div class="management-overview-pagination"><span>Showing ${firstRecord}-${lastRecord} of ${sortedRows.length} records</span><div><button class="management-page-button" data-action="management-overview-page" data-page="${Math.max(1,state.managementOverviewPage-1)}" ${state.managementOverviewPage===1?'disabled':''}>‹</button>${pagination}<button class="management-page-button" data-action="management-overview-page" data-page="${Math.min(totalPages,state.managementOverviewPage+1)}" ${state.managementOverviewPage===totalPages?'disabled':''}>›</button></div></div>
     </section>`;
