@@ -4,17 +4,19 @@
   const config = api.config;
   const el = {};
   const state = {
-    user:null,data:null,route:'dashboard',dashboardYear:'all',dashboardRecordType:'all',dashboardPillar:'all',dashboardFit:'all',dashboardRisk:'all',dashboardView:'all',dashboardQuarter:'all',dashboardQuadrant:'all',dashboardQuality:'all',governanceYear:'all',governanceSearch:'',governanceView:'all',filters:{year:null,department:'all',search:'',status:'all'},projectView:'list',timelineScale:'year',timelineAnchor:null,adminTab:'users',adminUserFilters:{search:'',department:'all',role:'all',status:'all'},managementAttentionPriority:'all',managementAttentionDepartment:'all',managementAttentionType:'all',managementAttentionSearch:'',compareFrom:2026,compareTo:2027
+    user:null,data:null,route:'dashboard',dashboardYear:'all',dashboardRecordType:'all',dashboardPillar:'all',dashboardFit:'all',dashboardRisk:'all',dashboardView:'all',dashboardQuarter:'all',dashboardQuadrant:'all',dashboardQuality:'all',governanceYear:'all',governanceSearch:'',governanceView:'all',filters:{year:null,department:'all',search:'',status:'all'},projectView:'list',timelineScale:'year',timelineAnchor:null,adminTab:'users',analyticsTab:'overview',adminUserFilters:{search:'',department:'all',role:'all',status:'all'},managementAttentionPriority:'all',managementAttentionIssue:'all',managementAttentionDepartment:'all',managementAttentionType:'all',managementAttentionSearch:'',compareFrom:2026,compareTo:2027
   };
   const navItems = [
-    {id:'dashboard',label:'Command Center',roles:'all'},
-    {id:'portfolio',label:'Portfolio',roles:'all'},
-    {id:'initiatives',label:'Initiatives',roles:'all'},
-    {id:'governance',label:'Value & Governance',roles:'all'},
-    {id:'projects',label:'Projects',roles:'all'},
-    {id:'comparison',label:'AMP Comparison',roles:'all'},
-    {id:'reports',label:'Reports',roles:'all'},
-    {id:'admin',label:'Administration',roles:['SUPER_ADMIN','ADMIN','DEPARTMENT_ADMIN']}
+    {id:'dashboard',label:'Command Centre',roles:'all',visible:true},
+    {id:'portfolio',label:'Portfolio',roles:'all',visible:true},
+    {id:'initiatives',label:'Initiative Register',roles:'all',visible:false,parent:'portfolio'},
+    {id:'governance',label:'Value & Governance',roles:'all',visible:false,parent:'portfolio'},
+    {id:'projects',label:'Project Management',roles:'all',visible:true},
+    {id:'management',label:'Management Priority',roles:'all',visible:true},
+    {id:'analytics',label:'Analytics',roles:'all',visible:true},
+    {id:'comparison',label:'AMP Comparison',roles:'all',visible:false,parent:'analytics'},
+    {id:'reports',label:'Reports',roles:'all',visible:true},
+    {id:'admin',label:'Administration',roles:['SUPER_ADMIN','ADMIN','DEPARTMENT_ADMIN'],visible:true}
   ];
 
   document.addEventListener('DOMContentLoaded',init);
@@ -123,8 +125,10 @@
     const item=navItems.find(n=>n.id===route);
     return !!item && (item.roles==='all'||item.roles.includes(state.user.role));
   }
+  function routeIsActive(item){return item.id===state.route||item.id===(navItems.find(n=>n.id===state.route)?.parent);}
+  function routeTitle(route){const item=navItems.find(n=>n.id===route);return item?.label||'Dashboard';}
   function renderNav(){
-    el.mainNav.innerHTML=navItems.filter(n=>n.roles==='all'||n.roles.includes(state.user.role)).map(n=>`<button data-route="${n.id}" class="${n.id===state.route?'active':''}">${n.label}</button>`).join('');
+    el.mainNav.innerHTML=navItems.filter(n=>(n.visible!==false)&&(n.roles==='all'||n.roles.includes(state.user.role))).map(n=>`<button data-route="${n.id}" class="${routeIsActive(n)?'active':''}">${n.label}</button>`).join('');
   }
   function navigate(route){ if(!allowedRoute(route))return;state.route=route;location.hash='#/'+route;el.mainNav.classList.remove('open');render();el.pageRoot.focus(); }
   async function logout(){ await api.signOut();state.user=null;state.data=null;el.userMenu.classList.add('hidden');showLogin();toast('You have signed out.','success'); }
@@ -132,9 +136,9 @@
   function render(){
     if(!state.data)return;
     renderNav();
-    const renderers={dashboard:renderDashboard,portfolio:renderPortfolio,initiatives:renderInitiatives,governance:renderGovernance,projects:renderProjects,comparison:renderComparison,reports:renderReports,admin:renderAdmin,profile:renderProfile};
+    const renderers={dashboard:renderDashboard,portfolio:renderPortfolio,initiatives:renderInitiatives,governance:renderGovernance,projects:renderProjects,management:renderManagementPriority,analytics:renderAnalytics,comparison:renderComparison,reports:renderReports,admin:renderAdmin,profile:renderProfile};
     el.pageRoot.innerHTML=(renderers[state.route]||renderDashboard)();
-    document.title='HOME31 · '+(state.route==='profile'?'My Profile':(navItems.find(n=>n.id===state.route)?.label||'Dashboard'));
+    document.title='HOME31 · '+(state.route==='profile'?'My Profile':routeTitle(state.route));
   }
 
   function pageHeader(eyebrow,title,description,actions){ return `<div class="page-header"><div class="page-title"><span class="eyebrow">${escapeHtml(eyebrow)}</span><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p></div><div class="header-actions">${actions||''}</div></div>`; }
@@ -353,7 +357,7 @@
   }
   function commandTooltip(label,meta){
     const help={
-      'Approved Budget':'Total official Approved Budget for all initiative cycles in the current Command Center filters.',
+      'Approved Budget':'Total official Approved Budget for all initiative cycles in the current Command Centre filters.',
       'Active Delivery':'Number of initiatives and linked projects that are not completed in the selected scope.',
       'On Track':'Delivery records progressing within the current schedule, readiness and risk controls.',
       'At Risk':'Delivery records classified as Watch or Critical and requiring management follow-up.',
@@ -365,7 +369,7 @@
   function commandKpi(label,value,meta,icon,view,klass){return `<button class="command-kpi has-tooltip ${klass||''} ${state.dashboardView===view?'active':''}" data-tooltip="${escapeAttr(commandTooltip(label,meta))}" aria-label="${escapeAttr(label+': '+String(value).replace(/<[^>]*>/g,''))}" data-action="dashboard-view" data-view="${view}"><span class="command-kpi-top"><b>${escapeHtml(label)}</b><i>${icon}</i></span><strong>${value}</strong><small>${meta}</small></button>`;}
   function executiveInsight(initiatives,items,totals,decisions){
     const critical=items.filter(i=>i.health==='CRITICAL').length,watch=items.filter(i=>i.health==='WATCH').length,overdue=items.filter(isOverdue).length,cba=cbaStats(initiatives),largest=initiatives.slice().sort((a,b)=>Number(b.approvedBudget||0)-Number(a.approvedBudget||0))[0];
-    if(!items.length)return 'No delivery records match the current Command Center scope. Adjust the filters or create an initiative record.';
+    if(!items.length)return 'No delivery records match the current Command Centre scope. Adjust the filters or create an initiative record.';
     const parts=[`${items.length} delivery records are visible across ${initiatives.length} initiative cycles and ${items.filter(i=>i.sourceType==='PROJECT').length} linked projects.`,`${money(totals.approved)} is recorded as Approved Budget.`];
     if(critical||watch)parts.push(`${critical} critical and ${watch} watch records require attention${overdue?`, including ${overdue} overdue`:''}.`);else parts.push('No critical or watch delivery records are currently identified.');
     if(decisions.length)parts.push(`${decisions.length} initiatives have unresolved management or functional decisions.`);
@@ -492,7 +496,7 @@
   function renderDashboardDeliveryRegister(items){
     const visible=dashboardViewItems(items),scope=dashboardScopeLabel(),emptyLabel=state.dashboardYear==='all'?'No delivery records are available':'No delivery records for AMP '+state.dashboardYear;
     const tabs=[['all','All delivery'],['critical','Critical'],['watch','Watchlist'],['overdue','Overdue'],['decisions','Decisions required'],['missing','Missing information'],['high-cba','CBA ≥ 1.0'],['low-cba','CBA < 1.0']];
-    return `<section class="card table-card dashboard-delivery-register"><div class="table-header command-register-heading"><div><strong>Complete delivery register · ${scope}</strong><span class="dashboard-table-note">Every visible initiative and linked project. Quick views filter this register without changing the Command Center scope.</span></div><div class="header-actions"><span class="muted">${visible.length} of ${items.length}</span><button class="action-button" data-route="projects">Project Management</button></div></div><div class="register-tabs">${tabs.map(([id,label])=>`<button data-action="dashboard-view" data-view="${id}" class="${state.dashboardView===id?'active':''}">${label}</button>`).join('')}</div><div class="table-wrap"><table class="dashboard-delivery-table"><thead><tr><th>Year</th><th>Delivery record</th><th>Type</th><th>Parent initiative</th><th>Owner</th><th>Department</th><th>Pillar</th><th>HOME31 fit</th><th>Status</th><th>Health</th><th>Target</th><th>Progress</th><th>Readiness</th><th>Risk</th><th>Budget</th><th>CBA</th><th>HR</th><th>ICT</th><th>Evidence</th><th>Next action</th><th>Action</th></tr></thead><tbody>${visible.length?visible.map(item=>{const initiativeRecord=item.sourceType==='INITIATIVE',action=initiativeRecord?'view-initiative':'view-project',actionId=initiativeRecord?item.initiativeId:item.id;return `<tr><td><strong>AMP ${escapeHtml(item.year)}</strong></td><td><strong>${escapeHtml(item.title)}</strong><br><span class="muted">${escapeHtml(item.code||'Pending code')}</span></td><td>${statusBadge(item.sourceType)}</td><td>${initiativeRecord?'<span class="muted">Enterprise initiative</span>':escapeHtml(item.initiativeTitle||initiativeTitle(item.initiativeId))}</td><td>${escapeHtml(item.owner||'Unassigned')}</td><td>${escapeHtml(item.departmentName||departmentName(item.departmentId))}</td><td>${escapeHtml(item.pillarName||'Not assigned')}</td><td>${escapeHtml(item.home31Fit||'Derived automatically')}</td><td>${statusBadge(item.status||'DRAFT')}</td><td>${statusBadge(item.health||'ON_TRACK')}</td><td>${formatDate(item.targetDate)}</td><td>${progressMini(item.progress)}</td><td>${Number(item.readiness||0)}%</td><td>${item.risk?statusBadge(String(item.risk).toUpperCase()==='EXTREME'?'CRITICAL':String(item.risk).toUpperCase()):'<span class="muted">Not recorded</span>'}</td><td class="amount">${Number(item.budget||0)>0?money(item.budget):'<span class="muted">Not recorded</span>'}</td><td>${item.cba===null?'<span class="muted">Not assessed</span>':item.cba.toFixed(2)}</td><td>${escapeHtml(item.hrReview||'Not submitted')}</td><td>${escapeHtml(item.ictReview||'Not assessed')}</td><td><span class="badge ${item.evidence>=70?'green':'amber'}">${item.evidence}%</span></td><td><span class="next-action-cell">${escapeHtml(item.nextAction||'Not recorded')}</span></td><td><button class="action-button" data-action="${action}" data-id="${actionId}">View</button></td></tr>`;}).join(''):`<tr><td colspan="21"><div class="empty-state"><strong>${emptyLabel}</strong>Adjust the scope or quick management view.</div></td></tr>`}</tbody></table></div></section>`;
+    return `<section class="card table-card dashboard-delivery-register"><div class="table-header command-register-heading"><div><strong>Complete delivery register · ${scope}</strong><span class="dashboard-table-note">Every visible initiative and linked project. Quick views filter this register without changing the Command Centre scope.</span></div><div class="header-actions"><span class="muted">${visible.length} of ${items.length}</span><button class="action-button" data-route="projects">Project Management</button></div></div><div class="register-tabs">${tabs.map(([id,label])=>`<button data-action="dashboard-view" data-view="${id}" class="${state.dashboardView===id?'active':''}">${label}</button>`).join('')}</div><div class="table-wrap"><table class="dashboard-delivery-table"><thead><tr><th>Year</th><th>Delivery record</th><th>Type</th><th>Parent initiative</th><th>Owner</th><th>Department</th><th>Pillar</th><th>HOME31 fit</th><th>Status</th><th>Health</th><th>Target</th><th>Progress</th><th>Readiness</th><th>Risk</th><th>Budget</th><th>CBA</th><th>HR</th><th>ICT</th><th>Evidence</th><th>Next action</th><th>Action</th></tr></thead><tbody>${visible.length?visible.map(item=>{const initiativeRecord=item.sourceType==='INITIATIVE',action=initiativeRecord?'view-initiative':'view-project',actionId=initiativeRecord?item.initiativeId:item.id;return `<tr><td><strong>AMP ${escapeHtml(item.year)}</strong></td><td><strong>${escapeHtml(item.title)}</strong><br><span class="muted">${escapeHtml(item.code||'Pending code')}</span></td><td>${statusBadge(item.sourceType)}</td><td>${initiativeRecord?'<span class="muted">Enterprise initiative</span>':escapeHtml(item.initiativeTitle||initiativeTitle(item.initiativeId))}</td><td>${escapeHtml(item.owner||'Unassigned')}</td><td>${escapeHtml(item.departmentName||departmentName(item.departmentId))}</td><td>${escapeHtml(item.pillarName||'Not assigned')}</td><td>${escapeHtml(item.home31Fit||'Derived automatically')}</td><td>${statusBadge(item.status||'DRAFT')}</td><td>${statusBadge(item.health||'ON_TRACK')}</td><td>${formatDate(item.targetDate)}</td><td>${progressMini(item.progress)}</td><td>${Number(item.readiness||0)}%</td><td>${item.risk?statusBadge(String(item.risk).toUpperCase()==='EXTREME'?'CRITICAL':String(item.risk).toUpperCase()):'<span class="muted">Not recorded</span>'}</td><td class="amount">${Number(item.budget||0)>0?money(item.budget):'<span class="muted">Not recorded</span>'}</td><td>${item.cba===null?'<span class="muted">Not assessed</span>':item.cba.toFixed(2)}</td><td>${escapeHtml(item.hrReview||'Not submitted')}</td><td>${escapeHtml(item.ictReview||'Not assessed')}</td><td><span class="badge ${item.evidence>=70?'green':'amber'}">${item.evidence}%</span></td><td><span class="next-action-cell">${escapeHtml(item.nextAction||'Not recorded')}</span></td><td><button class="action-button" data-action="${action}" data-id="${actionId}">View</button></td></tr>`;}).join(''):`<tr><td colspan="21"><div class="empty-state"><strong>${emptyLabel}</strong>Adjust the scope or quick management view.</div></td></tr>`}</tbody></table></div></section>`;
   }
   function renderPortfolioHealthChart(items){
     const counts={ON_TRACK:items.filter(i=>i.health==='ON_TRACK').length,WATCH:items.filter(i=>i.health==='WATCH').length,CRITICAL:items.filter(i=>i.health==='CRITICAL').length,COMPLETED:items.filter(i=>i.health==='COMPLETED').length};
@@ -513,23 +517,45 @@
   }
 
   function renderManagementAttentionTable(items){
+    const healthRank={CRITICAL:4,WATCH:3,ON_TRACK:2,COMPLETED:1};
     const managementRank={STRATEGIC:5,HIGH:4,MEDIUM:3,OPERATIONAL:2,'NOT ASSESSED':1};
-    const baseRows=items.slice().sort((a,b)=>
-      (managementRank[String(b.managementPriority||'Not Assessed').toUpperCase()]||0)-
-      (managementRank[String(a.managementPriority||'Not Assessed').toUpperCase()]||0)||
-      Number(b.approvedBudget||0)-Number(a.approvedBudget||0)||
-      String(a.title||'').localeCompare(String(b.title||''))
+    const baseRows=items.map(i=>{
+      const issueEntries=[];
+      const add=(label,category)=>issueEntries.push({label,category});
+      if(i.health==='CRITICAL')add('Critical delivery condition','delivery');
+      if(i.health==='WATCH')add('Watchlist follow-up','delivery');
+      if(isOverdue(i))add('Target date overdue','overdue');
+      (i.decisions||[]).filter(Boolean).forEach(decision=>add(decision,'decision'));
+      if(!String(i.nextAction||'').trim())add('Next action missing','next-action');
+      if(!String(i.projectOwner||i.owner||'').trim()||(i.projectOwner||i.owner)==='Unassigned')add('Owner unassigned','ownership');
+      if(!i.targetDate)add('Target date missing','target');
+
+      const unique=[];
+      const seen=new Set();
+      issueEntries.forEach(entry=>{
+        const key=entry.category+'|'+entry.label;
+        if(!seen.has(key)){seen.add(key);unique.push(entry);}
+      });
+
+      return {i,issueEntries:unique,categories:new Set(unique.map(entry=>entry.category))};
+    }).filter(row=>row.issueEntries.length).sort((a,b)=>
+      (managementRank[String(b.i.managementPriority||'Not Assessed').toUpperCase()]||0)-(managementRank[String(a.i.managementPriority||'Not Assessed').toUpperCase()]||0)||
+      (healthRank[b.i.health]||0)-(healthRank[a.i.health]||0)||
+      Number(isOverdue(b.i))-Number(isOverdue(a.i))||
+      b.issueEntries.length-a.issueEntries.length||
+      String(a.i.title||'').localeCompare(String(b.i.title||''))
     );
 
-    const departmentRows=[...new Map(baseRows.map(i=>{
+    const departmentRows=[...new Map(baseRows.map(({i})=>{
       const id=String(i.departmentId||i.departmentName||'unassigned');
       return [id,{id,name:i.departmentName||departmentName(i.departmentId)||'Unassigned department'}];
     })).values()].sort((a,b)=>a.name.localeCompare(b.name));
 
     const query=String(state.managementAttentionSearch||'').trim().toLowerCase();
-    const visibleRows=baseRows.filter(i=>{
+    const visibleRows=baseRows.filter(({i,issueEntries,categories})=>{
       const managementPriority=String(i.managementPriority||'Not Assessed').toLowerCase();
       if(state.managementAttentionPriority!=='all'&&managementPriority!==String(state.managementAttentionPriority).toLowerCase())return false;
+      if(state.managementAttentionIssue!=='all'&&!categories.has(state.managementAttentionIssue))return false;
 
       const itemDepartment=String(i.departmentId||i.departmentName||'unassigned');
       if(state.managementAttentionDepartment!=='all'&&itemDepartment!==String(state.managementAttentionDepartment))return false;
@@ -537,51 +563,46 @@
 
       if(query){
         const searchable=[
-          i.title,i.code,i.projectOwner||i.owner,i.departmentName,i.year,i.sourceType,i.managementPriority
+          i.title,i.code,i.projectOwner||i.owner,i.departmentName,i.year,i.sourceType,i.managementPriority,
+          ...issueEntries.map(entry=>entry.label)
         ].join(' ').toLowerCase();
         if(!searchable.includes(query))return false;
       }
       return true;
     });
 
-    const priorityCounts=baseRows.reduce((counts,i)=>{
-      const key=String(i.managementPriority||'Not Assessed').toUpperCase();
-      if(key==='STRATEGIC')counts.strategic++;
-      else if(key==='HIGH')counts.high++;
-      else if(key==='MEDIUM')counts.medium++;
-      else if(key==='OPERATIONAL')counts.operational++;
-      else counts.notAssessed++;
-      return counts;
-    },{strategic:0,high:0,medium:0,operational:0,notAssessed:0});
-
+    const critical=baseRows.filter(row=>row.i.health==='CRITICAL').length;
+    const watch=baseRows.filter(row=>row.i.health==='WATCH').length;
+    const overdue=baseRows.filter(row=>isOverdue(row.i)).length;
+    const decisions=baseRows.filter(row=>row.categories.has('decision')).length;
     const activeFilters=[
       state.managementAttentionPriority!=='all',
+      state.managementAttentionIssue!=='all',
       state.managementAttentionDepartment!=='all',
       state.managementAttentionType!=='all',
       Boolean(query)
     ].filter(Boolean).length;
 
-    return `<section class="card table-card executive-attention-table priority-issues-panel management-priority-panel">
+    return `<section class="card table-card executive-attention-table priority-issues-panel">
       <div class="table-header priority-issues-heading">
         <div>
-          <strong>Management Priority</strong>
-          <span class="dashboard-table-note">Projects ranked by saved management priority, accountable owner and official Approved Budget within the current Command Center scope.</span>
+          <strong>Priority Issues</strong>
+          <span class="dashboard-table-note">Management attention requiring executive, functional or delivery follow-up within the current Command Centre scope.</span>
         </div>
-        <span class="badge ${visibleRows.length?'teal':'gray'}">${visibleRows.length} of ${baseRows.length} records</span>
+        <span class="badge ${visibleRows.length?'amber':'green'}">${visibleRows.length} of ${baseRows.length} records</span>
       </div>
 
-      <div class="priority-issues-summary management-priority-summary" aria-label="Management priority summary">
-        <div class="strategic"><span>Strategic</span><strong>${priorityCounts.strategic}</strong><small>Enterprise priority</small></div>
-        <div class="high"><span>High</span><strong>${priorityCounts.high}</strong><small>High management focus</small></div>
-        <div class="medium"><span>Medium</span><strong>${priorityCounts.medium}</strong><small>Planned oversight</small></div>
-        <div class="operational"><span>Operational</span><strong>${priorityCounts.operational}</strong><small>Operational delivery</small></div>
-        <div class="not-assessed"><span>Not assessed</span><strong>${priorityCounts.notAssessed}</strong><small>Priority required</small></div>
+      <div class="priority-issues-summary" aria-label="Priority issues summary">
+        <div class="critical"><span>Critical</span><strong>${critical}</strong><small>Immediate intervention</small></div>
+        <div class="watch"><span>Watchlist</span><strong>${watch}</strong><small>Follow-up required</small></div>
+        <div class="overdue"><span>Overdue</span><strong>${overdue}</strong><small>Past target date</small></div>
+        <div class="decision"><span>Decision items</span><strong>${decisions}</strong><small>Management or functional</small></div>
       </div>
 
-      <div class="management-attention-filters management-priority-filters">
+      <div class="management-attention-filters">
         <label class="management-attention-search">
-          <span>Search projects</span>
-          <input type="search" data-management-attention-search value="${escapeAttr(state.managementAttentionSearch||'')}" placeholder="Project name, project owner or department">
+          <span>Search priority issues</span>
+          <input type="search" data-management-attention-search value="${escapeAttr(state.managementAttentionSearch||'')}" placeholder="Project name, project owner or issue">
         </label>
 
         <label>
@@ -593,6 +614,19 @@
             <option value="medium" ${state.managementAttentionPriority==='medium'?'selected':''}>Medium</option>
             <option value="operational" ${state.managementAttentionPriority==='operational'?'selected':''}>Operational</option>
             <option value="not assessed" ${state.managementAttentionPriority==='not assessed'?'selected':''}>Not Assessed</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Issue type</span>
+          <select data-management-attention-filter="issue">
+            <option value="all" ${state.managementAttentionIssue==='all'?'selected':''}>All issue types</option>
+            <option value="delivery" ${state.managementAttentionIssue==='delivery'?'selected':''}>Delivery condition</option>
+            <option value="overdue" ${state.managementAttentionIssue==='overdue'?'selected':''}>Overdue</option>
+            <option value="decision" ${state.managementAttentionIssue==='decision'?'selected':''}>Decision required</option>
+            <option value="next-action" ${state.managementAttentionIssue==='next-action'?'selected':''}>Next action missing</option>
+            <option value="ownership" ${state.managementAttentionIssue==='ownership'?'selected':''}>Owner missing</option>
+            <option value="target" ${state.managementAttentionIssue==='target'?'selected':''}>Target date missing</option>
           </select>
         </label>
 
@@ -616,33 +650,30 @@
         <button class="btn outline compact" data-action="management-attention-reset" ${activeFilters?'':'disabled'}>Reset filters</button>
       </div>
 
-      <div class="priority-issues-register management-priority-register" role="table" aria-label="Management Priority register">
+      <div class="priority-issues-register" role="table" aria-label="Priority Issues register">
         <div class="priority-issues-grid priority-issues-grid-head" role="row">
           <div role="columnheader">Management Priority</div>
           <div role="columnheader">Project Name</div>
+          <div role="columnheader">Issue</div>
           <div role="columnheader">Project Owner</div>
           <div role="columnheader" class="amount">Budget Approved</div>
-          <div role="columnheader">Action</div>
+          <div role="columnheader">Due Date</div>
         </div>
         <div class="priority-issues-grid-body" role="rowgroup">
-          ${visibleRows.length?visibleRows.map(i=>{
+          ${visibleRows.length?visibleRows.map(({i,issueEntries})=>{
+            const rowClass=i.health==='CRITICAL'?'critical':i.health==='WATCH'?'watch':'stable';
             const managementPriority=String(i.managementPriority||'Not Assessed');
-            const priorityClass=managementPriority.toLowerCase().replace(/\s+/g,'-');
             const projectOwner=i.projectOwner||i.owner||'Unassigned';
             const approvedBudget=Number(i.approvedBudget??i.formData?.approvedBudget??0);
-            const initiativeRecord=i.sourceType==='INITIATIVE';
-            const recordId=initiativeRecord?(i.initiativeId||i.id):i.id;
-            const viewAction=initiativeRecord?'view-initiative':'view-project';
-            const editAction=initiativeRecord?'edit-initiative':'edit-project';
-            const canEditRecord=state.user&&state.user.role!=='AUDITOR';
-            return `<div class="has-tooltip priority-issues-grid priority-issue-row priority-${escapeAttr(priorityClass)}" role="row" data-tooltip="${escapeAttr(`${i.title}: ${managementPriority} priority, owner ${projectOwner}, Approved Budget ${money(approvedBudget)}.`)}">
-              <div class="priority-cell priority-management" role="cell"><span class="management-priority-badge ${escapeAttr(priorityClass)}">${escapeHtml(managementPriority)}</span></div>
+            return `<div class="has-tooltip priority-issues-grid priority-issue-row ${rowClass}" role="row" data-tooltip="${escapeAttr(`${i.title}: ${issueEntries.map(entry=>entry.label).join('; ')}`)}">
+              <div class="priority-cell priority-management" role="cell">${statusBadge(managementPriority.toUpperCase().replace(/\s+/g,'_'))}</div>
               <div class="priority-cell priority-project" role="cell"><strong>${escapeHtml(i.title)}</strong><span class="muted">${escapeHtml(i.code||'Pending code')} · AMP ${i.year} · ${escapeHtml(pretty(i.sourceType))}</span><span class="muted">${escapeHtml(i.departmentName||departmentName(i.departmentId)||'Unassigned department')}</span></div>
+              <div class="priority-cell priority-issues" role="cell"><div class="priority-issue-chips">${issueEntries.map(entry=>`<span class="decision-chip issue-${escapeAttr(entry.category)}">${escapeHtml(entry.label)}</span>`).join('')}</div></div>
               <div class="priority-cell priority-owner" role="cell">${escapeHtml(projectOwner)}</div>
               <div class="priority-cell priority-budget amount" role="cell">${money(approvedBudget)}</div>
-              <div class="priority-cell priority-actions" role="cell"><button class="action-button primary-action" data-action="${viewAction}" data-id="${escapeAttr(recordId)}">View</button>${canEditRecord?`<button class="action-button" data-action="${editAction}" data-id="${escapeAttr(recordId)}">Edit</button>`:''}</div>
+              <div class="priority-cell priority-due" role="cell">${i.targetDate?formatDate(i.targetDate):'<span class="muted">Not set</span>'}</div>
             </div>`;
-          }).join(''):`<div class="priority-issues-empty"><div class="empty-state compact"><strong>${baseRows.length?'No matching management-priority records':'No delivery records available'}</strong>${baseRows.length?'Adjust or reset the Management Priority filters.':'No initiatives or linked projects are available in the current Command Center scope.'}</div></div>`}
+          }).join(''):`<div class="priority-issues-empty"><div class="empty-state compact"><strong>${baseRows.length?'No matching priority issues':'No priority issues identified'}</strong>${baseRows.length?'Adjust or reset the Priority Issues filters.':'All visible delivery records are within the current automated controls.'}</div></div>`}
         </div>
       </div>
     </section>`;
@@ -660,17 +691,11 @@
     const onTrack=deliveryItems.filter(i=>i.health==='ON_TRACK').length,watch=deliveryItems.filter(i=>i.health==='WATCH').length,critical=deliveryItems.filter(i=>i.health==='CRITICAL').length,overdue=deliveryItems.filter(isOverdue).length,completed=deliveryItems.filter(i=>i.health==='COMPLETED').length;
     const atRiskBudget=initiatives.filter(i=>deliveryItems.some(d=>d.initiativeId===i.id&&['CRITICAL','WATCH'].includes(d.health))).reduce((s,i)=>s+Number(i.approvedBudget||0),0),healthyPct=deliveryItems.length?Math.round((onTrack+completed)/deliveryItems.length*100):0;
     const phase3Notice=phase3Installed()?'':`<div class="alert danger command-phase3-warning"><strong>Phase 3 governance data is not connected.</strong> Run migration 004 before using benefits, governed CBA, Finance updates and decision readiness.</div>`;
-    return phase3Notice+`<section class="command-hero executive-command-hero"><div><span class="command-kicker">HOME31 · ENTERPRISE COMMAND CENTER</span><h1>Executive Portfolio Command Center</h1><p>Enterprise portfolio performance, investment control and management attention in one decision-focused view.</p><div class="command-data-basis">${scope} · ${initiatives.length} initiative cycles · ${linkedProjects.length} linked projects · ${state.filters.department==='all'?'All departments':departmentName(state.filters.department)}</div></div><div>${renderDashboardFilters()}</div></section>`+
+    return phase3Notice+`<section class="command-hero executive-command-hero"><div><span class="command-kicker">HOME31 · EXECUTIVE COMMAND CENTRE</span><h1>Executive Portfolio Command Centre</h1><p>A focused management view of portfolio health, investment exposure, overdue delivery and decisions requiring intervention.</p><div class="command-data-basis">${scope} · ${initiatives.length} initiative cycles · ${linkedProjects.length} linked projects · ${state.filters.department==='all'?'All departments':departmentName(state.filters.department)}</div></div><div>${renderDashboardFilters()}</div></section>`+
       `<div class="command-kpi-grid executive-kpis operational-kpis">${commandKpi('Approved Budget',money(totals.approved),'Official portfolio cost basis','RM','all','featured')}${commandKpi('Active Delivery',deliveryItems.filter(i=>i.health!=='COMPLETED').length,initiatives.length+' initiatives · '+linkedProjects.length+' projects','▶','all')}${commandKpi('Portfolio Health',healthyPct+'%',onTrack+' on track · '+completed+' completed','✓','all','positive')}${commandKpi('Budget at Risk',money(atRiskBudget),critical+' critical · '+watch+' watch','!','risk','warning')}${commandKpi('Overdue Delivery',overdue,'Past target date and incomplete','⏱','overdue','danger')}${commandKpi('Decisions Required',decisions.length,'Management or functional action pending','?','decisions','priority')}</div>`+
-      renderBudgetJourneyCard(initiatives)+
-      `<section class="executive-insight-card"><div><span class="eyebrow">Executive insight</span><h2>Portfolio position and immediate management meaning</h2><p>${escapeHtml(executiveInsight(initiatives,deliveryItems,totals,decisions))}</p></div><div class="insight-actions"><button class="btn danger compact" data-action="dashboard-view" data-view="critical">Critical records</button><button class="btn secondary compact" data-action="dashboard-view" data-view="decisions">Pending decisions</button><button class="btn outline compact" data-route="portfolio">Enterprise portfolio</button></div></section>`+
+      `<section class="executive-insight-card"><div><span class="eyebrow">Executive insight</span><h2>Current portfolio position</h2><p>${escapeHtml(executiveInsight(initiatives,deliveryItems,totals,decisions))}</p></div><div class="insight-actions"><button class="btn primary compact" data-route="management">Management Priority</button><button class="btn secondary compact" data-route="analytics">Open Analytics</button><button class="btn outline compact" data-route="portfolio">Enterprise Portfolio</button></div></section>`+
+      `<section class="command-section"><div class="command-section-heading"><div><span class="eyebrow">Executive overview</span><h2>Health and investment position</h2><p>Concise portfolio indicators with detailed analysis available in Analytics.</p></div><button class="btn outline compact" data-route="analytics">View detailed analytics</button></div><div class="command-two-column executive-chart-grid"><article class="card panel"><div class="panel-header"><div><h2>Portfolio health</h2><p>Current distribution by management health.</p></div></div>${renderPortfolioHealthChart(deliveryItems)}</article><article class="card panel"><div class="panel-header"><div><h2>Investment position</h2><p>Approved, committed, utilised and forecast position.</p></div></div>${renderInvestmentPositionChart(initiatives)}</article></div></section>`+
       renderManagementAttentionTable(deliveryItems)+
-      `<section class="command-section"><div class="command-section-heading"><div><span class="eyebrow">Portfolio performance</span><h2>Delivery health and investment position</h2><p>Hover each visual element for its definition and current values.</p></div></div><div class="command-two-column executive-chart-grid"><article class="card panel"><div class="panel-header"><div><h2>Portfolio health</h2><p>Distribution of delivery records by management health.</p></div></div>${renderPortfolioHealthChart(deliveryItems)}</article><article class="card panel"><div class="panel-header"><div><h2>Investment position</h2><p>Requested, approved, committed, utilised, forecast and remaining budget.</p></div></div>${renderInvestmentPositionChart(initiatives)}</article></div></section>`+
-      `<section class="command-section"><div class="command-section-heading"><div><span class="eyebrow">Strategic allocation</span><h2>Investment concentration and annual movement</h2></div></div><div class="command-two-column executive-chart-grid"><article class="card panel"><div class="panel-header"><div><h2>Approved Budget by Strategic Pillar</h2><p>Count and investment concentration across HOME31 priorities.</p></div></div>${renderStrategicAlignment(initiatives)}</article><article class="card panel"><div class="panel-header"><div><h2>AMP Portfolio Trend</h2><p>Approved Budget and initiative count by reporting year.</p></div></div>${renderAmpTrend(initiatives)}</article></div></section>`+
-      `<section class="command-section"><div class="command-section-heading"><div><span class="eyebrow">Prioritisation & capacity</span><h2>Value, complexity and quarterly delivery pressure</h2><p>Use these views to identify priority initiatives and periods of concentrated delivery activity.</p></div></div><div class="command-two-column executive-chart-grid"><article class="card panel"><div class="panel-header"><div><h2>Cost–Benefit–Complexity Matrix</h2><p>Expected benefit against delivery complexity, with Approved Budget represented by bubble size.</p></div></div>${renderCostBenefitComplexityMatrix(initiatives)}</article><article class="card panel"><div class="panel-header"><div><h2>Quarterly Delivery Load</h2><p>Planned starts, target completions and overdue carry-forward by quarter.</p></div></div>${renderQuarterlyDeliveryLoad(deliveryItems)}</article></div></section>`+
-      renderDepartmentMatrix(initiatives,deliveryItems)+
-      `<section class="command-section"><div class="command-section-heading"><div><span class="eyebrow">Value & governance</span><h2>Governance coverage and decision assurance</h2><p>Compact coverage indicators with full records available in Value & Governance.</p></div><button class="btn outline compact" data-route="governance">Open Value & Governance</button></div>${renderGovernanceSummary(initiatives)}</section>`+
-      `<section class="card panel command-quality-panel"><div class="panel-header"><div><h2>Data Quality Assurance</h2><p>Completeness across core decision and delivery information.</p></div></div>${renderDataQuality(initiatives)}</section>`+
       dashboardActiveFilterBanner(deliveryItems)+renderExecutiveDeliveryRegister(deliveryItems);
   }
 
@@ -680,10 +705,43 @@
     return rows.length?rows.map(r=>`<div class="budget-line"><span>${escapeHtml(r.name)}</span><div class="bar-track" title="${money(r.approved)}"><div class="bar-fill" style="width:${Math.max(2,r.approved/max*100)}%"></div></div><strong>${moneyShort(r.approved)}</strong></div>`).join(''):'<div class="empty-state">No approved budget for this selection.</div>';
   }
 
+  function analyticsTabs(){
+    const tabs=[['overview','Overview'],['financial','Financial'],['delivery','Delivery'],['department','Department'],['strategic','Strategic'],['amp','AMP Comparison']];
+    return `<div class="analytics-tabs">${tabs.map(([id,label])=>`<button data-action="analytics-tab" data-tab="${id}" class="${state.analyticsTab===id?'active':''}">${label}</button>`).join('')}</div>`;
+  }
+
+  function renderManagementPriority(){
+    const initiatives=dashboardScopedInitiatives(),items=dashboardDeliveryItems(),critical=items.filter(i=>i.health==='CRITICAL'),watch=items.filter(i=>i.health==='WATCH'),overdue=items.filter(isOverdue),decisions=initiatives.filter(i=>initiativeDecisionItems(i).length);
+    const exposed=initiatives.filter(i=>items.some(d=>d.initiativeId===i.id&&['CRITICAL','WATCH'].includes(d.health))).reduce((sum,i)=>sum+Number(i.approvedBudget||0),0);
+    return `<section class="management-priority-hero"><div><span class="command-kicker">HOME31 · MANAGEMENT PRIORITY</span><h1>Management Priority</h1><p>One controlled queue for projects requiring intervention, decisions, recovery action or executive oversight.</p><div class="command-data-basis">${dashboardScopeLabel()} · ${state.filters.department==='all'?'All departments':departmentName(state.filters.department)}</div></div><div>${renderDashboardFilters()}</div></section>`+
+      `<div class="grid kpi-grid management-priority-kpis">${kpi('Priority records',new Set([...critical,...watch,...overdue]).size,'Critical, watch or overdue','!','warning')}${kpi('Critical',critical.length,'Immediate intervention required','×','negative')}${kpi('Watch',watch.length,'Follow-up and clarification','◷','warning')}${kpi('Overdue',overdue.length,'Past target date','⏱','negative')}${kpi('Decisions required',decisions.length,'Management or functional action','?')}${kpi('Budget exposed',money(exposed),'Approved Budget under attention','RM')}</div>`+
+      `<section class="executive-insight-card management-priority-intro"><div><span class="eyebrow">Governance workflow</span><h2>Act, decide and resolve</h2><p>Use this register for management intervention. Open each initiative or project to review its current delivery, ownership and required action.</p></div><div class="insight-actions"><button class="btn primary compact" data-route="projects">Project Management</button><button class="btn outline compact" data-route="analytics">Analyse trends</button></div></section>`+
+      renderManagementAttentionTable(items);
+  }
+
+  function renderAnalyticsAmpComparison(){
+    const years=state.data.reportingYears.map(y=>Number(y.year)).sort(),from=Number(state.compareFrom),to=Number(state.compareTo),oldItems=state.data.initiatives.filter(i=>!i.archived&&Number(i.year)===from),newItems=state.data.initiatives.filter(i=>!i.archived&&Number(i.year)===to),oldTotal=budgetTotals(oldItems).approved,newTotal=budgetTotals(newItems).approved,diff=newTotal-oldTotal,growth=oldTotal?diff/oldTotal:0,types=['CARRY_FORWARD','EVOLUTION','REPEAT','NEW'],max=Math.max(1,...types.flatMap(t=>[oldItems.filter(i=>i.classification===t).length,newItems.filter(i=>i.classification===t).length]));
+    return `<div class="analytics-control-row"><div><strong>AMP comparison</strong><span>Compare annual portfolio classification and Approved Budget movement.</span></div><div class="toolbar-group"><select data-compare="from">${years.map(y=>`<option value="${y}" ${y===from?'selected':''}>AMP ${y}</option>`).join('')}</select><span class="muted">versus</span><select data-compare="to">${years.map(y=>`<option value="${y}" ${y===to?'selected':''}>AMP ${y}</option>`).join('')}</select></div></div>`+
+      `<div class="summary-strip"><div><small>AMP ${from} approved</small><strong>${money(oldTotal)}</strong></div><div><small>AMP ${to} approved</small><strong>${money(newTotal)}</strong></div><div><small>Net movement</small><strong class="${diff>=0?'positive':'negative'}">${diff>=0?'+':''}${money(diff)}</strong></div><div><small>Portfolio growth</small><strong>${growth>=0?'+':''}${percent(growth)}</strong></div><div><small>Initiative movement</small><strong>${newItems.length-oldItems.length>=0?'+':''}${newItems.length-oldItems.length}</strong></div></div>`+
+      `<div class="grid two-col"><section class="card panel"><div class="panel-header"><div><h2>Classification movement</h2><p>Number of initiatives by annual type</p></div></div><div class="comparison-bars">${types.map(t=>{const a=oldItems.filter(i=>i.classification===t).length,b=newItems.filter(i=>i.classification===t).length;return `<div class="comparison-row"><strong>${pretty(t)}</strong><div class="compare-track" title="AMP ${from}: ${a}"><div class="compare-old" style="width:${a/max*100}%"></div></div><div class="compare-track" title="AMP ${to}: ${b}"><div class="compare-new" style="width:${b/max*100}%"></div></div><span>${a} → ${b}</span></div>`;}).join('')}</div></section><section class="card panel"><div class="panel-header"><div><h2>Largest budget movements</h2><p>Matched by initiative title</p></div></div><div class="status-list">${comparisonMovements(oldItems,newItems).slice(0,8).map(m=>`<div class="status-item"><div><strong>${escapeHtml(m.title)}</strong><small>${money(m.old)} → ${money(m.current)}</small></div><span class="badge ${m.diff>=0?'green':'red'}">${m.old?((m.diff/m.old*100)>=0?'+':'')+Math.round(m.diff/m.old*100)+'%':'New'}</span></div>`).join('')||'<div class="empty-state">No comparable records.</div>'}</div></section></div>`;
+  }
+
+  function renderAnalytics(){
+    const initiatives=dashboardScopedInitiatives(),items=dashboardDeliveryItems(),totals=budgetTotals(initiatives),critical=items.filter(i=>i.health==='CRITICAL').length,overdue=items.filter(isOverdue).length;
+    let content='';
+    if(state.analyticsTab==='financial')content=renderBudgetJourneyCard(initiatives)+`<div class="command-two-column executive-chart-grid analytics-grid"><article class="card panel"><div class="panel-header"><div><h2>Investment position</h2><p>Portfolio funding, execution and forecast.</p></div></div>${renderInvestmentPositionChart(initiatives)}</article><article class="card panel"><div class="panel-header"><div><h2>Department investment</h2><p>Approved Budget concentration by department.</p></div></div><div class="budget-list">${renderDepartmentBudgetBars(initiatives)}</div></article></div>`;
+    else if(state.analyticsTab==='delivery')content=`<div class="command-two-column executive-chart-grid analytics-grid"><article class="card panel"><div class="panel-header"><div><h2>Portfolio health</h2><p>Delivery distribution and management attention.</p></div></div>${renderPortfolioHealthChart(items)}</article><article class="card panel"><div class="panel-header"><div><h2>Quarterly delivery load</h2><p>Starts, completions and overdue carry-forward.</p></div></div>${renderQuarterlyDeliveryLoad(items)}</article></div>${renderExecutiveDeliveryRegister(items)}`;
+    else if(state.analyticsTab==='department')content=renderDepartmentMatrix(initiatives,items);
+    else if(state.analyticsTab==='strategic')content=`<div class="command-two-column executive-chart-grid analytics-grid"><article class="card panel"><div class="panel-header"><div><h2>Strategic allocation</h2><p>Initiative count and Approved Budget by pillar.</p></div></div>${renderStrategicAlignment(initiatives)}</article><article class="card panel"><div class="panel-header"><div><h2>Cost–Benefit–Complexity</h2><p>Expected benefit, delivery complexity and budget.</p></div></div>${renderCostBenefitComplexityMatrix(initiatives)}</article></div><section class="card panel command-quality-panel"><div class="panel-header"><div><h2>Data quality assurance</h2><p>Completeness across decision and delivery information.</p></div></div>${renderDataQuality(initiatives)}</section>`;
+    else if(state.analyticsTab==='amp')content=renderAnalyticsAmpComparison();
+    else content=`<div class="grid kpi-grid analytics-kpis">${kpi('Approved Budget',money(totals.approved),initiatives.length+' initiative cycles','RM')}${kpi('Delivery records',items.length,'Initiatives and linked projects','▶')}${kpi('Critical',critical,'Immediate attention required','!','negative')}${kpi('Overdue',overdue,'Past target date','⏱','warning')}${kpi('Departments',new Set(initiatives.map(i=>i.departmentId)).size,'Within current scope','⌂')}${kpi('Planning years',new Set(initiatives.map(i=>i.year)).size,'Dynamic AMP coverage','↔')}</div><div class="command-two-column executive-chart-grid analytics-grid"><article class="card panel"><div class="panel-header"><div><h2>Portfolio health</h2><p>Current delivery position.</p></div></div>${renderPortfolioHealthChart(items)}</article><article class="card panel"><div class="panel-header"><div><h2>AMP portfolio trend</h2><p>Annual Approved Budget and initiative movement.</p></div></div>${renderAmpTrend(initiatives)}</article></div>${renderDepartmentMatrix(initiatives,items)}`;
+    return `<section class="analytics-hero"><div><span class="command-kicker">HOME31 · PORTFOLIO INTELLIGENCE</span><h1>Analytics</h1><p>Explore financial, delivery, department, strategic and AMP performance using the same governed HOME31 records.</p><div class="command-data-basis">${dashboardScopeLabel()} · ${state.filters.department==='all'?'All departments':departmentName(state.filters.department)}</div></div><div>${renderDashboardFilters()}</div></section>${analyticsTabs()}<div class="analytics-tab-content">${content}</div>`;
+  }
+
   function renderPortfolio(){
     const initiatives=scopedInitiatives(),totals=budgetTotals(initiatives);
     const rows=state.data.departments.map(d=>{const list=initiatives.filter(i=>i.departmentId===d.id),t=budgetTotals(list),projectCount=scopedProjects().filter(p=>p.departmentId===d.id).length;return {d,list,t,projectCount};}).filter(r=>r.list.length).sort((a,b)=>b.t.approved-a.t.approved);
-    return pageHeader('Enterprise investment view','Portfolio','Review department investment, utilisation and delivery concentration.',renderGlobalFilters()+`<button class="btn primary compact" data-route="initiatives">Open register</button>`)+
+    return pageHeader('Enterprise investment view','Portfolio','Review department investment, initiative records, value governance and delivery concentration.',renderGlobalFilters()+`<button class="btn outline compact" data-route="governance">Value & Governance</button><button class="btn primary compact" data-route="initiatives">Initiative Register</button>`)+
       `<div class="summary-strip"><div><small>Requested</small><strong>${money(totals.requested)}</strong></div><div><small>Approved</small><strong>${money(totals.approved)}</strong></div><div><small>Committed</small><strong>${money(totals.committed)}</strong></div><div><small>Utilised</small><strong>${money(totals.utilised)}</strong></div><div><small>Available</small><strong>${money(Math.max(0,totals.approved-totals.utilised))}</strong></div></div>`+
       `<section class="card table-card"><div class="table-header"><strong>Department portfolio summary</strong><span class="muted">${rows.length} departments</span></div><div class="table-wrap"><table><thead><tr><th>Department</th><th>Initiatives</th><th>Projects</th><th class="amount">Approved Budget</th><th class="amount">Utilised</th><th>Utilisation</th><th>Attention</th></tr></thead><tbody>${rows.map(r=>{const utilisation=r.t.approved?r.t.utilised/r.t.approved:0;const attention=scopedProjects().filter(p=>p.departmentId===r.d.id&&['AT_RISK','DELAYED'].includes(p.health)).length;return `<tr><td><strong>${escapeHtml(r.d.name)}</strong><br><span class="muted">${escapeHtml(r.d.code)}</span></td><td>${r.list.length}</td><td>${r.projectCount}</td><td class="amount">${money(r.t.approved)}</td><td class="amount">${money(r.t.utilised)}</td><td><div class="progress-cell"><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,utilisation*100)}%"></div></div>${percent(utilisation)}</div></td><td>${attention?statusBadge(attention+' AT RISK'):statusBadge('ON_TRACK')}</td></tr>`;}).join('')}</tbody></table></div></section>`;
   }
@@ -710,7 +768,7 @@
     const all=(state.data.initiatives||[]).filter(i=>!i.archived),items=governanceInitiatives(),cbaValidated=all.filter(i=>cbaStatus(i)==='VALIDATED').length,benefitsMeasured=all.filter(i=>phase3(i).latestBenefitMeasurementDate).length,financeCurrent=all.filter(i=>phase3(i).financeReportingDate).length,ready=all.filter(i=>phase3(i).decisionReadinessStatus==='READY_FOR_DECISION').length;
     const phaseWarning=phase3Installed()?'':`<div class="alert danger"><strong>Phase 3 overview is unavailable.</strong><br>The database view could not be read through Supabase REST.${state.data.capabilities?.phase3Error?`<br><code>${escapeHtml(state.data.capabilities.phase3Error)}</code>`:''}<br>Run the V7.1 connection repair, then sign out and refresh.</div>`;
     const readinessWarning=phase3Installed()&&state.data.capabilities?.readiness===false?`<div class="alert warning"><strong>Decision-readiness configuration is unavailable.</strong>${state.data.capabilities?.readinessError?`<br><code>${escapeHtml(state.data.capabilities.readinessError)}</code>`:''}</div>`:'';
-    return pageHeader('Benefits, CBA, finance and decision assurance','Value & Governance','Maintain actual benefits, governed CBA reviews, Finance execution updates, AMP continuity and decision-readiness assessments.',`<button class="btn outline compact" data-route="dashboard">Open Command Center</button>`)+phaseWarning+readinessWarning+
+    return pageHeader('Benefits, CBA, finance and decision assurance','Value & Governance','Maintain actual benefits, governed CBA reviews, Finance execution updates, AMP continuity and decision-readiness assessments.',`<button class="btn outline compact" data-route="dashboard">Open Command Centre</button>`)+phaseWarning+readinessWarning+
       `<div class="grid kpi-grid governance-kpis" style="grid-template-columns:repeat(4,1fr)">${kpi('CBA validated',cbaValidated,all.length+' initiative cycles','◈')}${kpi('Benefits measured',benefitsMeasured,'Actual results recorded','◎')}${kpi('Finance updated',financeCurrent,'Latest execution position','RM')}${kpi('Ready for decision',ready,'Governed readiness outcome','✓')}</div>`+
       `<div class="toolbar governance-toolbar"><div class="toolbar-group"><input data-governance-search placeholder="Search initiative, code or owner" value="${escapeAttr(state.governanceSearch)}"><select data-governance-year><option value="all" ${state.governanceYear==='all'?'selected':''}>All years</option>${yearOptions(state.governanceYear)}</select><select data-filter="department">${departmentOptions(state.filters.department,true)}</select><select data-governance-view><option value="all" ${state.governanceView==='all'?'selected':''}>All governance records</option><option value="cba" ${state.governanceView==='cba'?'selected':''}>CBA action required</option><option value="benefits" ${state.governanceView==='benefits'?'selected':''}>Benefits not measured</option><option value="finance" ${state.governanceView==='finance'?'selected':''}>Finance update missing</option><option value="readiness" ${state.governanceView==='readiness'?'selected':''}>Readiness action required</option></select></div><span class="muted">${items.length} records</span></div>`+
       `<section class="card table-card governance-register"><div class="table-header"><div><strong>Value & Governance Register</strong><span class="dashboard-table-note">Latest governed position for each accessible annual initiative cycle.</span></div></div><div class="table-wrap"><table><thead><tr><th>Year</th><th>Initiative</th><th>Department</th><th>Approved Budget</th><th>CBA ratio</th><th>CBA status</th><th>Benefit actual</th><th>Benefit status</th><th>Finance reporting</th><th>Committed</th><th>Utilised</th><th>Forecast</th><th>Decision score</th><th>Decision status</th><th>Action</th></tr></thead><tbody>${items.length?items.map(i=>{const p=phase3(i),score=readinessScore(i);return `<tr><td><strong>AMP ${i.year}</strong></td><td><strong>${escapeHtml(i.title)}</strong><br><span class="muted">${escapeHtml(i.code)}</span></td><td>${escapeHtml(i.departmentName||departmentName(i.departmentId))}</td><td class="amount">${money(i.approvedBudget)}</td><td>${governedCba(i)===null?'<span class="muted">Not assessed</span>':governedCba(i).toFixed(2)}</td><td>${statusBadge(cbaStatus(i))}</td><td>${escapeHtml(benefitActual(i))}</td><td>${statusBadge(benefitStatus(i))}</td><td>${formatDate(p.financeReportingDate)}</td><td class="amount">${p.committedAmount===null||p.committedAmount===undefined?'<span class="muted">Not recorded</span>':money(p.committedAmount)}</td><td class="amount">${p.utilisedAmount===null||p.utilisedAmount===undefined?'<span class="muted">Not recorded</span>':money(p.utilisedAmount)}</td><td class="amount">${p.forecastAtCompletion===null||p.forecastAtCompletion===undefined?'<span class="muted">Not recorded</span>':money(p.forecastAtCompletion)}</td><td>${score===null?'<span class="muted">Not assessed</span>':score.toFixed(1)+'%'}</td><td>${p.decisionReadinessStatus?statusBadge(p.decisionReadinessStatus):'<span class="muted">Not assessed</span>'}</td><td>${canManagePhase3()?`<button class="action-button" data-action="manage-phase3" data-id="${i.id}">Manage</button>`:`<button class="action-button" data-action="view-initiative" data-id="${i.id}">View</button>`}</td></tr>`;}).join(''):'<tr><td colspan="15"><div class="empty-state"><strong>No governance records match the filters</strong>Adjust the year, department, or action view.</div></td></tr>'}</tbody></table></div></section>`+
@@ -837,8 +895,8 @@
     const route=event.target.closest('[data-route]');if(route){navigate(route.dataset.route);return;}
     const button=event.target.closest('[data-action]');if(!button)return;const action=button.dataset.action,id=button.dataset.id;
     try{
-      if(action==='dashboard-reset'){state.dashboardYear='all';state.dashboardRecordType='all';state.dashboardPillar='all';state.dashboardFit='all';state.dashboardRisk='all';state.dashboardView='all';state.dashboardQuarter='all';state.dashboardQuadrant='all';state.dashboardQuality='all';state.managementAttentionPriority='all';state.managementAttentionDepartment='all';state.managementAttentionType='all';state.managementAttentionSearch='';state.filters.department='all';render();}
-      else if(action==='management-attention-reset'){state.managementAttentionPriority='all';state.managementAttentionDepartment='all';state.managementAttentionType='all';state.managementAttentionSearch='';render();}
+      if(action==='dashboard-reset'){state.dashboardYear='all';state.dashboardRecordType='all';state.dashboardPillar='all';state.dashboardFit='all';state.dashboardRisk='all';state.dashboardView='all';state.dashboardQuarter='all';state.dashboardQuadrant='all';state.dashboardQuality='all';state.managementAttentionPriority='all';state.managementAttentionIssue='all';state.managementAttentionDepartment='all';state.managementAttentionType='all';state.managementAttentionSearch='';state.filters.department='all';render();}
+      else if(action==='management-attention-reset'){state.managementAttentionPriority='all';state.managementAttentionIssue='all';state.managementAttentionDepartment='all';state.managementAttentionType='all';state.managementAttentionSearch='';render();}
       else if(action==='dashboard-view'){state.dashboardView=button.dataset.view||'all';const register=document.querySelector('.dashboard-delivery-register');render();setTimeout(()=>document.querySelector('.dashboard-delivery-register')?.scrollIntoView({behavior:'smooth',block:'start'}),20);}
       else if(action==='dashboard-quarter'){state.dashboardQuarter=state.dashboardQuarter===button.dataset.quarter?'all':button.dataset.quarter;render();setTimeout(()=>document.querySelector('.executive-delivery-register')?.scrollIntoView({behavior:'smooth',block:'start'}),20);}
       else if(action==='dashboard-quadrant'){state.dashboardQuadrant=state.dashboardQuadrant===button.dataset.quadrant?'all':button.dataset.quadrant;render();setTimeout(()=>document.querySelector('.executive-delivery-register')?.scrollIntoView({behavior:'smooth',block:'start'}),20);}
@@ -871,6 +929,7 @@
       else if(action==='edit-department')openDepartmentModal(state.data.departments.find(d=>d.id===id));
       else if(action==='new-year')openYearModal();
       else if(action==='edit-year')openYearModal(state.data.reportingYears.find(y=>y.id===id));
+      else if(action==='analytics-tab'){state.analyticsTab=button.dataset.tab||'overview';render();}
       else if(action==='admin-tab'){state.adminTab=button.dataset.tab;render();}
       else if(action==='delete-audit')await deleteAuditLogs();
       else if(action==='change-password')openPasswordModal(false);
@@ -905,6 +964,7 @@ This will also delete them from the database and cannot be undone. Export the CS
     if(event.target.hasAttribute('data-management-attention-filter')){
       const key=event.target.dataset.managementAttentionFilter,value=event.target.value;
       if(key==='priority')state.managementAttentionPriority=value;
+      else if(key==='issue')state.managementAttentionIssue=value;
       else if(key==='department')state.managementAttentionDepartment=value;
       else if(key==='type')state.managementAttentionType=value;
       render();
