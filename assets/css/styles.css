@@ -782,3 +782,89 @@ td{font-size:11px}
 @media(max-width:720px){.analytics-hero,.management-priority-hero{padding:18px}.analytics-hero h1,.management-priority-hero h1{font-size:27px}.analytics-kpis,.management-priority-kpis{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:480px){.analytics-kpis,.management-priority-kpis{grid-template-columns:1fr}}
 
+
+
+/* ==========================================================================\n   HOME31 V9.4.1 — Command Centre V3 Refined\n   Presentation and client-side interaction only. No database/API changes.\n   ========================================================================== */
+button,input,select,textarea,table,th,td{font-family:var(--font)}
+.command-centre-v3{grid-template-columns:minmax(0,1.08fr) minmax(520px,.92fr);padding:21px 23px;align-items:start}
+.command-centre-v3 h1{font-size:34px;margin:7px 0 7px}
+.command-centre-v3 p{font-size:13px;max-width:780px}
+.command-centre-v3 .command-data-basis{font-size:10px;margin-top:12px}
+.command-finance-mini{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:14px}
+.command-finance-mini article{min-width:0;padding:10px 11px;border:1px solid rgba(255,255,255,.15);border-radius:10px;background:rgba(255,255,255,.075)}
+.command-finance-mini span,.command-finance-mini strong,.command-finance-mini small{display:block}
+.command-finance-mini span{color:#d9c17d;font-size:8px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+.command-finance-mini strong{margin-top:4px;color:#fff;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.command-finance-mini small{margin-top:2px;color:#b9cad5;font-size:8px}
+.executive-kpis.command-centre-kpis{grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+.command-centre-kpis .command-kpi{min-height:138px;padding:17px}
+.command-centre-kpis .command-kpi-top b{font-size:10px}
+.command-centre-kpis .command-kpi>strong{font-size:28px}
+.command-centre-kpis .command-kpi>small{font-size:10px;line-height:1.45}
+.executive-brief-card{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;overflow:hidden;margin:14px 0;border:1px solid #dfe5eb;border-radius:16px;background:#fff;box-shadow:0 6px 20px rgba(11,37,56,.045)}
+.executive-brief-card>article{padding:17px 18px;border-right:1px solid var(--line)}
+.executive-brief-card span,.executive-brief-card strong{display:block}
+.executive-brief-card span{color:var(--muted);font-size:9px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+.executive-brief-card strong{margin-top:7px;font-size:13px;line-height:1.5;color:var(--navy-900)}
+.executive-brief-actions{display:flex;align-items:center;gap:8px;padding:14px;white-space:nowrap}
+.command-centre-signals{margin-top:17px}
+.management-overview-panel{overflow:hidden;margin-top:15px}
+.management-overview-heading{align-items:center}
+.management-overview-heading>div:first-child{display:grid;gap:4px}
+.management-overview-heading>div:first-child>strong{font-size:18px;color:var(--navy-900)}
+.management-overview-tools{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.management-overview-tools label{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:9px;font-weight:800}
+.management-overview-tools select{min-height:34px;padding:0 9px;border:1px solid var(--line-strong);border-radius:8px;background:#fff;color:var(--ink)}
+.management-overview-table-wrap{position:relative;max-width:100%}
+.management-overview-table{min-width:1320px}
+.management-overview-table th,.management-overview-table td{padding:13px 14px;font-size:11px;line-height:1.45}
+.management-overview-table th{font-size:9px}
+.management-overview-table tbody tr:nth-child(even){background:#fbfcfd}
+.management-overview-table tbody tr:hover{background:#fff8f7}
+.management-sortable{cursor:pointer;user-select:none}
+.management-sortable:after{content:' ↕';color:#9aa6b3;font-size:8px}
+.management-sortable.sorted-asc:after{content:' ↑';color:var(--home31-brand)}
+.management-sortable.sorted-desc:after{content:' ↓';color:var(--home31-brand)}
+.management-sticky-project{position:sticky;left:0;z-index:1;background:inherit;box-shadow:1px 0 0 var(--line)}
+.management-overview-table thead .management-sticky-project{z-index:3;background:#f7f8fa}
+.management-overview-table td.management-sticky-project strong{font-size:12px}
+.management-row-actions{display:flex;gap:6px;white-space:nowrap}
+.management-row-actions .action-button{min-height:32px;padding:0 10px;font-size:10px}
+.management-row-actions .management-view{border:1px solid #d8b3b6;background:#fff;color:var(--home31-brand)}
+.management-row-actions .management-edit{border:1px solid var(--line);background:#fff;color:#40536a}
+.management-row-actions .management-view:hover{background:var(--home31-brand-soft)}
+.management-row-actions .management-edit:hover{background:#f2f4f6}
+.management-overview-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 15px;border-top:1px solid var(--line);background:#fbfcfd;color:var(--muted);font-size:10px}
+.management-overview-pagination>div{display:flex;align-items:center;gap:5px}
+.management-page-button{min-width:33px;height:33px;padding:0 9px;border:1px solid var(--line);border-radius:8px;background:#fff;color:#40536a;font-size:10px;font-weight:800}
+.management-page-button.active{border-color:var(--home31-brand);background:var(--home31-brand);color:#fff}
+.management-page-button:disabled{opacity:.45;cursor:not-allowed}
+.management-page-gap{padding:0 3px;color:var(--muted)}
+.management-attention-filters{background:#fbfcfd}
+.management-attention-filters label>span{font-size:9px}
+.management-attention-filters input,.management-attention-filters select{font-size:11px}
+.priority-issues-summary span,.priority-issues-summary small{font-size:9px}
+.priority-issues-summary strong{font-size:24px}
+
+@media(max-width:1300px){
+  .command-centre-v3{grid-template-columns:1fr}
+  .executive-kpis.command-centre-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:980px){
+  .command-finance-mini{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .executive-brief-card{grid-template-columns:1fr}
+  .executive-brief-card>article{border-right:0;border-bottom:1px solid var(--line)}
+  .executive-brief-actions{justify-content:flex-start}
+}
+@media(max-width:720px){
+  .executive-kpis.command-centre-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .management-overview-heading,.management-overview-pagination{align-items:flex-start;flex-direction:column}
+}
+@media(max-width:480px){
+  .command-finance-mini,.executive-kpis.command-centre-kpis{grid-template-columns:1fr}
+}
+@media print{
+  .management-overview-tools,.management-attention-filters,.management-overview-pagination,.management-row-actions .management-edit{display:none!important}
+  .management-overview-table{min-width:0}
+  .management-sticky-project{position:static;box-shadow:none}
+}
