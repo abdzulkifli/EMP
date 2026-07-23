@@ -4,7 +4,7 @@
   const config = api.config;
   const el = {};
   const state = {
-    user:null,data:null,route:'dashboard',dashboardYear:'all',dashboardRecordType:'all',dashboardPillar:'all',dashboardFit:'all',dashboardRisk:'all',dashboardView:'all',dashboardQuarter:'all',dashboardQuadrant:'all',dashboardQuality:'all',governanceYear:'all',governanceSearch:'',governanceView:'all',filters:{year:null,department:'all',search:'',status:'all'},projectView:'list',timelineScale:'year',timelineAnchor:null,adminTab:'users',analyticsTab:'overview',adminUserFilters:{search:'',department:'all',role:'all',status:'all'},managementAttentionPriority:'all',managementAttentionIssue:'all',managementAttentionDepartment:'all',managementAttentionType:'all',managementAttentionSearch:'',managementOverviewSort:'priority',managementOverviewDirection:'asc',managementOverviewPage:1,managementOverviewPageSize:10,compareFrom:2026,compareTo:2027
+    user:null,data:null,route:'dashboard',dashboardYear:'all',dashboardRecordType:'all',dashboardPillar:'all',dashboardFit:'all',dashboardRisk:'all',dashboardView:'all',dashboardQuarter:'all',dashboardQuadrant:'all',dashboardQuality:'all',governanceYear:'all',governanceSearch:'',governanceView:'all',filters:{year:null,department:'all',search:'',status:'all'},projectView:'list',timelineScale:'year',timelineAnchor:null,adminTab:'users',analyticsTab:'overview',adminUserFilters:{search:'',department:'all',role:'all',status:'all'},managementAttentionPriority:'all',managementAttentionLevel:'all',managementAttentionIssue:'all',managementAttentionDepartment:'all',managementAttentionType:'all',managementAttentionSearch:'',managementOverviewSort:'priority',managementOverviewDirection:'asc',managementOverviewPage:1,managementOverviewPageSize:10,compareFrom:2026,compareTo:2027
   };
   const navItems = [
     {id:'dashboard',label:'Command Centre',roles:'all',visible:true},
@@ -237,12 +237,12 @@
         risk:d.overallRiskLevel||displayRisk(i.priority),startDate:d.startDate||i.startDate||'',targetDate:d.targetDate||i.targetDate||'',budget:Number(d.approvedBudget??i.approvedBudget??0),spent:Number(i.utilisedBudget||0),
         description:d.projectDescription||i.description||'',nextAction:d.nextAction||'',initiativeTitle:i.title,formData:d,cba:governedCba(i),cbaValidationStatus:cbaStatus(i),benefitStatus:benefitStatus(i),benefitActual:benefitActual(i),decisionReadinessStatus:phase3(i).decisionReadinessStatus||'',decisionReadinessScore:readinessScore(i),managementTreatment:phase3(i).managementTreatment||'',financeReportingDate:phase3(i).financeReportingDate||'',evidence:evidenceScore(d),
         hrReview:d.hrReviewStatus||'Not submitted',ictReview:d.ictClassification||'Not assessed',pillarId:d.strategicPillarId||i.strategicPillarId,pillarName:pillar?.name||i.strategicPillarName||'Not assigned',
-        home31Fit:d.home31FitDecision||'Derived automatically',managementPriority:String(d.managementPriority||'').trim(),priorityStatus:d.priorityStatus||'Not Assessed',projectOwner:d.projectOwnerName||i.owner||'Unassigned',postChallengeBudget:numberOrNull(d.postChallengeEstimatedCost),approvedBudget:Number(d.approvedBudget??i.approvedBudget??0),decisions:initiativeDecisionItems(i),rolesAffected:Number(d.rolesAffected||0)
+        home31Fit:d.home31FitDecision||'Derived automatically',managementPriority:normaliseManagementPriority(d.managementPriority),priorityStatus:resolvePriorityLevel(d.priorityStatus,d.managementPriority),projectOwner:d.projectOwnerName||i.owner||'Unassigned',postChallengeBudget:numberOrNull(d.postChallengeEstimatedCost),approvedBudget:Number(d.approvedBudget??i.approvedBudget??0),decisions:initiativeDecisionItems(i),rolesAffected:Number(d.rolesAffected||0)
       };
     });
     const projects=sourceProjects.map(p=>{
       const initiative=state.data.initiatives.find(i=>i.id===p.initiativeId),d=initiative?.formData||{},parent=initiatives.find(i=>i.initiativeId===p.initiativeId);
-      return Object.assign({},p,{sourceType:'PROJECT',readiness:Number(d.readiness||0),risk:d.overallRiskLevel||'',nextAction:d.nextAction||'',initiativeTitle:p.initiativeTitle||initiative?.title||initiativeTitle(p.initiativeId),cba:governedCba(initiative),cbaValidationStatus:cbaStatus(initiative),benefitStatus:benefitStatus(initiative),benefitActual:benefitActual(initiative),decisionReadinessStatus:phase3(initiative).decisionReadinessStatus||'',decisionReadinessScore:readinessScore(initiative),managementTreatment:phase3(initiative).managementTreatment||'',financeReportingDate:phase3(initiative).financeReportingDate||'',evidence:evidenceScore(d),hrReview:d.hrReviewStatus||'Not submitted',ictReview:d.ictClassification||'Not assessed',pillarId:d.strategicPillarId||initiative?.strategicPillarId,pillarName:parent?.pillarName||initiative?.strategicPillarName||'Not assigned',home31Fit:d.home31FitDecision||'Derived automatically',managementPriority:String(d.managementPriority||parent?.managementPriority||'').trim(),priorityStatus:d.priorityStatus||'Not Assessed',projectOwner:p.owner||parent?.projectOwner||d.projectOwnerName||'Unassigned',postChallengeBudget:numberOrNull(d.postChallengeEstimatedCost),approvedBudget:Number(d.approvedBudget??initiative?.approvedBudget??0),decisions:parent?.decisions||[],rolesAffected:Number(d.rolesAffected||0),health:projectCommandHealth(p,parent)});
+      return Object.assign({},p,{sourceType:'PROJECT',readiness:Number(d.readiness||0),risk:d.overallRiskLevel||'',nextAction:d.nextAction||'',initiativeTitle:p.initiativeTitle||initiative?.title||initiativeTitle(p.initiativeId),cba:governedCba(initiative),cbaValidationStatus:cbaStatus(initiative),benefitStatus:benefitStatus(initiative),benefitActual:benefitActual(initiative),decisionReadinessStatus:phase3(initiative).decisionReadinessStatus||'',decisionReadinessScore:readinessScore(initiative),managementTreatment:phase3(initiative).managementTreatment||'',financeReportingDate:phase3(initiative).financeReportingDate||'',evidence:evidenceScore(d),hrReview:d.hrReviewStatus||'Not submitted',ictReview:d.ictClassification||'Not assessed',pillarId:d.strategicPillarId||initiative?.strategicPillarId,pillarName:parent?.pillarName||initiative?.strategicPillarName||'Not assigned',home31Fit:d.home31FitDecision||'Derived automatically',managementPriority:normaliseManagementPriority(d.managementPriority||parent?.managementPriority),priorityStatus:resolvePriorityLevel(d.priorityStatus||parent?.priorityStatus,d.managementPriority||parent?.managementPriority),projectOwner:p.owner||parent?.projectOwner||d.projectOwnerName||'Unassigned',postChallengeBudget:numberOrNull(d.postChallengeEstimatedCost),approvedBudget:Number(d.approvedBudget??initiative?.approvedBudget??0),decisions:parent?.decisions||[],rolesAffected:Number(d.rolesAffected||0),health:projectCommandHealth(p,parent)});
     });
     return initiatives.concat(projects).sort((a,b)=>Number(b.year)-Number(a.year)||String(a.sourceType).localeCompare(String(b.sourceType))||String(a.title).localeCompare(String(b.title)));
   }
@@ -517,14 +517,23 @@
   }
 
   function managementOverviewPriority(item){
-    const raw=String(item.managementPriority||'').trim();
+    const raw=normaliseManagementPriority(item.managementPriority);
     const canonical={
-      strategic:{label:'Strategic',code:'STRATEGIC',rank:1},
-      high:{label:'High',code:'HIGH',rank:2},
-      medium:{label:'Medium',code:'MEDIUM',rank:3},
-      operational:{label:'Operational',code:'OPERATIONAL',rank:4}
+      'Strategic':{label:'Strategic',code:'STRATEGIC',rank:1},
+      'Operational':{label:'Operational',code:'OPERATIONAL',rank:2},
+      'Not Assessed':{label:'Not Assessed',code:'NOT_ASSESSED',rank:3}
     };
-    return canonical[raw.toLowerCase()]||{label:'Not recorded',code:'NOT_RECORDED',rank:5};
+    return canonical[raw];
+  }
+  function managementOverviewLevel(item){
+    const raw=normalisePriorityLevel(item.priorityStatus);
+    const canonical={
+      'High':{label:'High',code:'HIGH',rank:1},
+      'Medium':{label:'Medium',code:'MEDIUM',rank:2},
+      'Low':{label:'Low',code:'LOW',rank:3},
+      'Not Assessed':{label:'Not Assessed',code:'NOT_ASSESSED',rank:4}
+    };
+    return canonical[raw];
   }
   function managementOverviewSort(rows){
     const direction=state.managementOverviewDirection==='asc'?1:-1,key=state.managementOverviewSort;
@@ -532,6 +541,7 @@
       const ai=a.i,bi=b.i;
       let av,bv;
       if(key==='priority'){av=a.priority.rank;bv=b.priority.rank;}
+      else if(key==='level'){av=a.level.rank;bv=b.level.rank;}
       else if(key==='name'){av=String(ai.title||'').toLowerCase();bv=String(bi.title||'').toLowerCase();}
       else if(key==='owner'){av=String(ai.projectOwner||ai.owner||'').toLowerCase();bv=String(bi.projectOwner||bi.owner||'').toLowerCase();}
       else if(key==='department'){av=String(ai.departmentName||departmentName(ai.departmentId)||'').toLowerCase();bv=String(bi.departmentName||departmentName(bi.departmentId)||'').toLowerCase();}
@@ -563,7 +573,7 @@
       const unique=[],seen=new Set();
       issueEntries.forEach(entry=>{const key=entry.category+'|'+entry.label;if(!seen.has(key)){seen.add(key);unique.push(entry);}});
       const categories=new Set(unique.map(entry=>entry.category));
-      return {i,issueEntries:unique,categories,priority:managementOverviewPriority(i)};
+      return {i,issueEntries:unique,categories,priority:managementOverviewPriority(i),level:managementOverviewLevel(i)};
     }).filter(row=>row.issueEntries.length);
 
     const departmentRows=[...new Map(baseRows.map(({i})=>{
@@ -573,14 +583,16 @@
 
     const query=String(state.managementAttentionSearch||'').trim().toLowerCase();
     const filteredRows=baseRows.filter(({i,issueEntries,categories})=>{
-      const managementPriority=String(i.managementPriority||'').trim().toLowerCase()||'not recorded';
+      const managementPriority=normaliseManagementPriority(i.managementPriority).toLowerCase();
+      const priorityLevel=normalisePriorityLevel(i.priorityStatus).toLowerCase();
       if(state.managementAttentionPriority!=='all'&&managementPriority!==String(state.managementAttentionPriority).toLowerCase())return false;
+      if(state.managementAttentionLevel!=='all'&&priorityLevel!==String(state.managementAttentionLevel).toLowerCase())return false;
       if(state.managementAttentionIssue!=='all'&&!categories.has(state.managementAttentionIssue))return false;
       const itemDepartment=String(i.departmentId||i.departmentName||'unassigned');
       if(state.managementAttentionDepartment!=='all'&&itemDepartment!==String(state.managementAttentionDepartment))return false;
       if(state.managementAttentionType!=='all'&&i.sourceType!==state.managementAttentionType)return false;
       if(query){
-        const searchable=[i.title,i.code,i.projectOwner||i.owner,i.departmentName,i.year,i.sourceType,i.managementPriority,...issueEntries.map(entry=>entry.label)].join(' ').toLowerCase();
+        const searchable=[i.title,i.code,i.projectOwner||i.owner,i.departmentName,i.year,i.sourceType,i.managementPriority,i.priorityStatus,...issueEntries.map(entry=>entry.label)].join(' ').toLowerCase();
         if(!searchable.includes(query))return false;
       }
       return true;
@@ -595,7 +607,7 @@
     const watch=baseRows.filter(row=>row.i.health==='WATCH').length;
     const overdue=baseRows.filter(row=>isOverdue(row.i)).length;
     const decisions=baseRows.filter(row=>row.categories.has('decision')).length;
-    const activeFilters=[state.managementAttentionPriority!=='all',state.managementAttentionIssue!=='all',state.managementAttentionDepartment!=='all',state.managementAttentionType!=='all',Boolean(query)].filter(Boolean).length;
+    const activeFilters=[state.managementAttentionPriority!=='all',state.managementAttentionLevel!=='all',state.managementAttentionIssue!=='all',state.managementAttentionDepartment!=='all',state.managementAttentionType!=='all',Boolean(query)].filter(Boolean).length;
     const canEdit=state.user.role!=='AUDITOR';
 
     const pageButtons=Array.from({length:totalPages},(_,index)=>index+1).filter(page=>totalPages<=7||page===1||page===totalPages||Math.abs(page-state.managementOverviewPage)<=1);
@@ -604,7 +616,7 @@
 
     return `<section class="card table-card executive-attention-table management-overview-panel">
       <div class="table-header management-overview-heading">
-        <div><strong>Management Overview</strong><span class="dashboard-table-note">Management Priority uses the saved initiative dropdown value: Strategic, High, Medium or Operational. Blank records are shown as Not recorded.</span></div>
+        <div><strong>Management Overview</strong><span class="dashboard-table-note">Management Priority classifies the work as Strategic, Operational or Not Assessed. Priority Level separately records High, Medium, Low or Not Assessed.</span></div>
         <div class="management-overview-tools"><span class="badge ${filteredRows.length?'amber':'green'}">${filteredRows.length} of ${baseRows.length} records</span><label><span>Rows</span><select data-management-overview-page-size><option value="5" ${pageSize===5?'selected':''}>5</option><option value="10" ${pageSize===10?'selected':''}>10</option><option value="15" ${pageSize===15?'selected':''}>15</option></select></label></div>
       </div>
       <div class="priority-issues-summary" aria-label="Management overview summary">
@@ -615,7 +627,8 @@
       </div>
       <div class="management-attention-filters">
         <label class="management-attention-search"><span>Search Management Overview</span><input type="search" data-management-attention-search value="${escapeAttr(state.managementAttentionSearch||'')}" placeholder="Project, owner, department or code"></label>
-        <label><span>Management priority</span><select data-management-attention-filter="priority"><option value="all" ${state.managementAttentionPriority==='all'?'selected':''}>All management priorities</option><option value="strategic" ${state.managementAttentionPriority==='strategic'?'selected':''}>Strategic</option><option value="high" ${state.managementAttentionPriority==='high'?'selected':''}>High</option><option value="medium" ${state.managementAttentionPriority==='medium'?'selected':''}>Medium</option><option value="operational" ${state.managementAttentionPriority==='operational'?'selected':''}>Operational</option><option value="not recorded" ${state.managementAttentionPriority==='not recorded'?'selected':''}>Not recorded</option></select></label>
+        <label><span>Management Priority</span><select data-management-attention-filter="priority"><option value="all" ${state.managementAttentionPriority==='all'?'selected':''}>All management priorities</option><option value="strategic" ${state.managementAttentionPriority==='strategic'?'selected':''}>Strategic</option><option value="operational" ${state.managementAttentionPriority==='operational'?'selected':''}>Operational</option><option value="not assessed" ${state.managementAttentionPriority==='not assessed'?'selected':''}>Not Assessed</option></select></label>
+        <label><span>Priority Level</span><select data-management-attention-filter="level"><option value="all" ${state.managementAttentionLevel==='all'?'selected':''}>All priority levels</option><option value="high" ${state.managementAttentionLevel==='high'?'selected':''}>High</option><option value="medium" ${state.managementAttentionLevel==='medium'?'selected':''}>Medium</option><option value="low" ${state.managementAttentionLevel==='low'?'selected':''}>Low</option><option value="not assessed" ${state.managementAttentionLevel==='not assessed'?'selected':''}>Not Assessed</option></select></label>
         <label><span>Attention type</span><select data-management-attention-filter="issue"><option value="all" ${state.managementAttentionIssue==='all'?'selected':''}>All attention types</option><option value="delivery" ${state.managementAttentionIssue==='delivery'?'selected':''}>Delivery condition</option><option value="overdue" ${state.managementAttentionIssue==='overdue'?'selected':''}>Overdue</option><option value="decision" ${state.managementAttentionIssue==='decision'?'selected':''}>Decision required</option><option value="next-action" ${state.managementAttentionIssue==='next-action'?'selected':''}>Next action missing</option><option value="ownership" ${state.managementAttentionIssue==='ownership'?'selected':''}>Owner missing</option><option value="target" ${state.managementAttentionIssue==='target'?'selected':''}>Target date missing</option></select></label>
         <label><span>Department</span><select data-management-attention-filter="department"><option value="all">All visible departments</option>${departmentRows.map(department=>`<option value="${escapeAttr(department.id)}" ${String(state.managementAttentionDepartment)===department.id?'selected':''}>${escapeHtml(department.name)}</option>`).join('')}</select></label>
         <label><span>Record type</span><select data-management-attention-filter="type"><option value="all" ${state.managementAttentionType==='all'?'selected':''}>Initiatives + Projects</option><option value="INITIATIVE" ${state.managementAttentionType==='INITIATIVE'?'selected':''}>Initiatives only</option><option value="PROJECT" ${state.managementAttentionType==='PROJECT'?'selected':''}>Projects only</option></select></label>
@@ -623,6 +636,7 @@
       </div>
       <div class="table-wrap management-overview-table-wrap"><table class="management-overview-table"><thead><tr>
         <th class="management-sortable${managementOverviewSortClass('priority')}" data-action="management-overview-sort" data-sort="priority">Management Priority</th>
+        <th class="management-sortable${managementOverviewSortClass('level')}" data-action="management-overview-sort" data-sort="level">Priority Level</th>
         <th class="management-sortable management-sticky-project${managementOverviewSortClass('name')}" data-action="management-overview-sort" data-sort="name">Initiative / Project</th>
         <th class="management-sortable${managementOverviewSortClass('owner')}" data-action="management-overview-sort" data-sort="owner">Owner</th>
         <th class="management-sortable${managementOverviewSortClass('department')}" data-action="management-overview-sort" data-sort="department">Department</th>
@@ -630,12 +644,12 @@
         <th class="management-sortable amount${managementOverviewSortClass('approved')}" data-action="management-overview-sort" data-sort="approved">Budget Approved</th>
         <th class="management-sortable${managementOverviewSortClass('target')}" data-action="management-overview-sort" data-sort="target">Target</th>
         <th>Actions</th>
-      </tr></thead><tbody>${pageRows.length?pageRows.map(({i,priority})=>{
+      </tr></thead><tbody>${pageRows.length?pageRows.map(({i,priority,level})=>{
         const initiativeRecord=i.sourceType==='INITIATIVE',actionId=initiativeRecord?i.initiativeId:i.id,viewAction=initiativeRecord?'view-initiative':'view-project',editAction=initiativeRecord?'edit-initiative':'edit-project';
         const postChallenge=i.postChallengeBudget===null?'<span class="muted">Not recorded</span>':money(i.postChallengeBudget);
         const approved=Number(i.approvedBudget||0)>0?money(i.approvedBudget):'<span class="muted">Not recorded</span>';
-        return `<tr><td>${statusBadge(priority.code)}</td><td class="management-sticky-project"><strong>${escapeHtml(i.title)}</strong><br><span class="muted">${escapeHtml(i.code||'Pending code')} · AMP ${i.year} · ${escapeHtml(pretty(i.sourceType))}</span></td><td>${escapeHtml(i.projectOwner||i.owner||'Unassigned')}</td><td>${escapeHtml(i.departmentName||departmentName(i.departmentId)||'Unassigned department')}</td><td class="amount">${postChallenge}</td><td class="amount">${approved}</td><td>${i.targetDate?formatDate(i.targetDate):'<span class="muted">Not set</span>'}</td><td><div class="management-row-actions"><button class="action-button management-view" data-action="${viewAction}" data-id="${actionId}">View</button>${canEdit?`<button class="action-button management-edit" data-action="${editAction}" data-id="${actionId}">Edit</button>`:''}</div></td></tr>`;
-      }).join(''):`<tr><td colspan="8"><div class="empty-state compact"><strong>${baseRows.length?'No matching management records':'No management attention identified'}</strong>${baseRows.length?'Adjust or reset the Management Overview filters.':'All visible delivery records are within the current automated controls.'}</div></td></tr>`}</tbody></table></div>
+        return `<tr><td>${statusBadge(priority.code)}</td><td>${statusBadge(level.code)}</td><td class="management-sticky-project"><strong>${escapeHtml(i.title)}</strong><br><span class="muted">${escapeHtml(i.code||'Pending code')} · AMP ${i.year} · ${escapeHtml(pretty(i.sourceType))}</span></td><td>${escapeHtml(i.projectOwner||i.owner||'Unassigned')}</td><td>${escapeHtml(i.departmentName||departmentName(i.departmentId)||'Unassigned department')}</td><td class="amount">${postChallenge}</td><td class="amount">${approved}</td><td>${i.targetDate?formatDate(i.targetDate):'<span class="muted">Not set</span>'}</td><td><div class="management-row-actions"><button class="action-button management-view" data-action="${viewAction}" data-id="${actionId}">View</button>${canEdit?`<button class="action-button management-edit" data-action="${editAction}" data-id="${actionId}">Edit</button>`:''}</div></td></tr>`;
+      }).join(''):`<tr><td colspan="9"><div class="empty-state compact"><strong>${baseRows.length?'No matching management records':'No management attention identified'}</strong>${baseRows.length?'Adjust or reset the Management Overview filters.':'All visible delivery records are within the current automated controls.'}</div></td></tr>`}</tbody></table></div>
       <div class="management-overview-pagination"><span>Showing ${firstRecord}-${lastRecord} of ${sortedRows.length} records</span><div><button class="management-page-button" data-action="management-overview-page" data-page="${Math.max(1,state.managementOverviewPage-1)}" ${state.managementOverviewPage===1?'disabled':''}>‹</button>${pagination}<button class="management-page-button" data-action="management-overview-page" data-page="${Math.min(totalPages,state.managementOverviewPage+1)}" ${state.managementOverviewPage===totalPages?'disabled':''}>›</button></div></div>
     </section>`;
   }
@@ -864,8 +878,8 @@
     const route=event.target.closest('[data-route]');if(route){navigate(route.dataset.route);return;}
     const button=event.target.closest('[data-action]');if(!button)return;const action=button.dataset.action,id=button.dataset.id;
     try{
-      if(action==='dashboard-reset'){state.dashboardYear='all';state.dashboardRecordType='all';state.dashboardPillar='all';state.dashboardFit='all';state.dashboardRisk='all';state.dashboardView='all';state.dashboardQuarter='all';state.dashboardQuadrant='all';state.dashboardQuality='all';state.managementAttentionPriority='all';state.managementAttentionIssue='all';state.managementAttentionDepartment='all';state.managementAttentionType='all';state.managementAttentionSearch='';state.managementOverviewPage=1;state.filters.department='all';render();}
-      else if(action==='management-attention-reset'){state.managementAttentionPriority='all';state.managementAttentionIssue='all';state.managementAttentionDepartment='all';state.managementAttentionType='all';state.managementAttentionSearch='';state.managementOverviewPage=1;render();}
+      if(action==='dashboard-reset'){state.dashboardYear='all';state.dashboardRecordType='all';state.dashboardPillar='all';state.dashboardFit='all';state.dashboardRisk='all';state.dashboardView='all';state.dashboardQuarter='all';state.dashboardQuadrant='all';state.dashboardQuality='all';state.managementAttentionPriority='all';state.managementAttentionLevel='all';state.managementAttentionIssue='all';state.managementAttentionDepartment='all';state.managementAttentionType='all';state.managementAttentionSearch='';state.managementOverviewPage=1;state.filters.department='all';render();}
+      else if(action==='management-attention-reset'){state.managementAttentionPriority='all';state.managementAttentionLevel='all';state.managementAttentionIssue='all';state.managementAttentionDepartment='all';state.managementAttentionType='all';state.managementAttentionSearch='';state.managementOverviewPage=1;render();}
       else if(action==='management-overview-sort'){const key=button.dataset.sort||'priority';if(state.managementOverviewSort===key)state.managementOverviewDirection=state.managementOverviewDirection==='asc'?'desc':'asc';else{state.managementOverviewSort=key;state.managementOverviewDirection='asc';}state.managementOverviewPage=1;render();}
       else if(action==='management-overview-page'){state.managementOverviewPage=Math.max(1,Number(button.dataset.page||1));render();setTimeout(()=>document.querySelector('.management-overview-panel')?.scrollIntoView({behavior:'smooth',block:'start'}),20);}
       else if(action==='dashboard-view'){state.dashboardView=button.dataset.view||'all';state.managementOverviewPage=1;render();setTimeout(()=>document.querySelector('.management-overview-panel')?.scrollIntoView({behavior:'smooth',block:'start'}),20);}
@@ -936,6 +950,7 @@ This will also delete them from the database and cannot be undone. Export the CS
     if(event.target.hasAttribute('data-management-attention-filter')){
       const key=event.target.dataset.managementAttentionFilter,value=event.target.value;
       if(key==='priority')state.managementAttentionPriority=value;
+      else if(key==='level')state.managementAttentionLevel=value;
       else if(key==='issue')state.managementAttentionIssue=value;
       else if(key==='department')state.managementAttentionDepartment=value;
       else if(key==='type')state.managementAttentionType=value;
@@ -1007,6 +1022,26 @@ This will also delete them from the database and cannot be undone. Export the CS
   function formOptions(values,selected,placeholder){
     return (placeholder!==undefined?`<option value="">${escapeHtml(placeholder)}</option>`:'')+values.map(value=>`<option value="${escapeAttr(value)}" ${String(selected??'')===String(value)?'selected':''}>${escapeHtml(value)}</option>`).join('');
   }
+  function normaliseManagementPriority(value){
+    const key=String(value||'').trim().toLowerCase().replace(/[_-]+/g,' ');
+    if(key==='strategic')return 'Strategic';
+    if(key==='operational')return 'Operational';
+    return 'Not Assessed';
+  }
+  function normalisePriorityLevel(value){
+    const key=String(value||'').trim().toLowerCase().replace(/[_-]+/g,' ');
+    if(key==='high')return 'High';
+    if(key==='medium')return 'Medium';
+    if(key==='low')return 'Low';
+    return 'Not Assessed';
+  }
+  function resolvePriorityLevel(value,legacyManagementPriority){
+    const direct=String(value||'').trim().toLowerCase().replace(/[_-]+/g,' ');
+    if(['high','medium','low'].includes(direct))return normalisePriorityLevel(direct);
+    const legacy=String(legacyManagementPriority||'').trim().toLowerCase().replace(/[_-]+/g,' ');
+    if(['high','medium','low'].includes(legacy))return normalisePriorityLevel(legacy);
+    return 'Not Assessed';
+  }
   function coreCategory(category){return ({'New Initiative':'NEW','Carry Forward Initiative':'CARRY_FORWARD','Business as usual':'REPEAT'})[category]||'NEW';}
   function displayCategory(core){return ({NEW:'New Initiative',CARRY_FORWARD:'Carry Forward Initiative',REPEAT:'Business as usual',EVOLUTION:'Carry Forward Initiative'})[core]||'New Initiative';}
   function coreStatus(status){return ({Planning:'DRAFT','In Progress':'APPROVED','At Risk':'UNDER_REVIEW','On Hold':'RETURNED',Completed:'COMPLETED'})[status]||'DRAFT';}
@@ -1024,7 +1059,11 @@ This will also delete them from the database and cannot be undone. Export the CS
     return data;
   }
   function applyInitiativeFormData(form,data){
-    Object.entries(data||{}).forEach(([key,value])=>{
+    const source=data||{},normalisedData=Object.assign({},source,{
+      managementPriority:normaliseManagementPriority(source.managementPriority),
+      priorityStatus:resolvePriorityLevel(source.priorityStatus,source.managementPriority)
+    });
+    Object.entries(normalisedData).forEach(([key,value])=>{
       const field=form.elements.namedItem(key);if(!field)return;
       if(field instanceof RadioNodeList){Array.from(field).forEach(x=>{if(x.type==='checkbox')x.checked=Boolean(value);});return;}
       if(field.type==='checkbox')field.checked=Boolean(value);else field.value=value??'';
@@ -1050,7 +1089,7 @@ This will also delete them from the database and cannot be undone. Export the CS
     }
     const review=document.getElementById('initiative-review-summary');if(review){
       const pillar=state.data.strategicPillars?.find(p=>p.id===data.strategicPillarId)?.name||'Not selected';
-      review.innerHTML=`<div class="review-grid"><article><small>Initiative</small><strong>${escapeHtml(data.initiativeName||'Not provided')}</strong><span>${escapeHtml(departmentName(data.departmentId))} · AMP ${escapeHtml(data.year)}</span></article><article><small>Accountability</small><strong>${escapeHtml(data.projectOwnerName||'Not provided')}</strong><span>Sponsor: ${escapeHtml(data.executiveSponsor||'Not provided')}</span></article><article><small>HOME31 alignment</small><strong>${escapeHtml(pillar)}</strong><span>${escapeHtml(data.home31FitDecision||'Derived automatically')}</span></article><article><small>Approved Budget</small><strong>${money(data.approvedBudget)}</strong><span>Evidence completeness: ${evidence}%</span></article><article><small>HR & Change</small><strong>${escapeHtml(data.hrCollaborationRequirement||'Not assessed')}</strong><span>${escapeHtml(data.hrReviewStatus||'Not submitted')}</span></article><article><small>Delivery</small><strong>${escapeHtml(data.deliveryStatus||'Planning')}</strong><span>${Number(data.progress||0)}% progress · ${Number(data.readiness||0)}% readiness</span></article></div>`;
+      review.innerHTML=`<div class="review-grid"><article><small>Initiative</small><strong>${escapeHtml(data.initiativeName||'Not provided')}</strong><span>${escapeHtml(departmentName(data.departmentId))} · AMP ${escapeHtml(data.year)}</span></article><article><small>Accountability</small><strong>${escapeHtml(data.projectOwnerName||'Not provided')}</strong><span>Sponsor: ${escapeHtml(data.executiveSponsor||'Not provided')}</span></article><article><small>HOME31 alignment</small><strong>${escapeHtml(pillar)}</strong><span>${escapeHtml(data.home31FitDecision||'Derived automatically')}</span></article><article><small>Approved Budget</small><strong>${money(data.approvedBudget)}</strong><span>Evidence completeness: ${evidence}%</span></article><article><small>HR & Change</small><strong>${escapeHtml(data.hrCollaborationRequirement||'Not assessed')}</strong><span>${escapeHtml(data.hrReviewStatus||'Not submitted')}</span></article><article><small>Delivery</small><strong>${escapeHtml(data.deliveryStatus||'Planning')}</strong><span>${escapeHtml(normaliseManagementPriority(data.managementPriority))} · Priority Level ${escapeHtml(normalisePriorityLevel(data.priorityStatus))} · ${Number(data.progress||0)}% progress · ${Number(data.readiness||0)}% readiness</span></article></div>`;
     }
   }
   function setInitiativeStep(form,next,validate){
@@ -1075,7 +1114,7 @@ This will also delete them from the database and cannot be undone. Export the CS
     const defaultDept=item.departmentId||(state.filters.department==='all'?(state.user.departmentId||state.data.departments[0]?.id):state.filters.department);
     const defaults={
       createdById:item.ownerId||state.user.id,sourceReference:'',year:item.year||state.filters.year,initiativeName:item.title||'',projectDescription:item.description||'',departmentId:defaultDept,
-      category:displayCategory(item.classification),managementPriority:'High',priorityStatus:'Not Assessed',executiveSponsor:'',projectOwnerName:item.owner||state.user.name,deliveryLead:'',startDate:item.startDate||'',targetDate:item.targetDate||'',deliveryStatus:displayStatus(item.status),overallRiskLevel:displayRisk(item.priority),
+      category:displayCategory(item.classification),managementPriority:'Not Assessed',priorityStatus:'Not Assessed',executiveSponsor:'',projectOwnerName:item.owner||state.user.name,deliveryLead:'',startDate:item.startDate||'',targetDate:item.targetDate||'',deliveryStatus:displayStatus(item.status),overallRiskLevel:displayRisk(item.priority),
       strategicPillarId:item.strategicPillarId||state.data.strategicPillars?.[0]?.id||'',home31FitDecision:'',strategicThrust:'Operational Excellence',strategicPriorityArea:'Improving Productivity, Efficiency and Delivery of Service (PEDS)',systemType:'Non System',ictClassification:'N/A',ictRemarks:'',
       problemStatement:'',expectedOutcome:'',valueMeasure:'',baselineValue:'',targetValue:'',measurementFrequency:'Quarterly',valueOwner:'',cbaRatio:null,progress:Number(item.progress||0),readiness:50,actionPlan:'',nextAction:'',
       initialEstimatedCost:Number(item.requestedBudget||0)||null,postChallengeEstimatedCost:null,proposedBudget:Number(item.forecastBudget||0)||null,approvedBudget:Number(item.approvedBudget||0)||null,postChallengeRemarks:'',financeRemarks:'',generalRemarks:'',
@@ -1083,6 +1122,9 @@ This will also delete them from the database and cannot be undone. Export the CS
       evidenceProblem:'Not available',evidenceBaseline:'Not available',evidenceBusinessCase:'Not available',evidenceFinancial:'Not available',evidenceRisk:'Not available',evidenceImplementation:'Not available',evidenceHr:'Not available',evidenceIct:'Not available',evidenceStakeholder:'Not available',evidenceChallenge:'Not available',evidenceReference:'',evidenceNotes:'',declaration:false
     };
     const d=Object.assign(defaults,existing);
+    const legacyManagementPriority=d.managementPriority;
+    d.priorityStatus=resolvePriorityLevel(d.priorityStatus,legacyManagementPriority);
+    d.managementPriority=normaliseManagementPriority(legacyManagementPriority);
     const scopedDepartments=isAdmin?state.data.departments.filter(x=>x.active!==false):state.data.departments.filter(x=>x.id===state.user.departmentId);
     const createdByHtml=isAdmin?`<label class="field span-2"><span>Record account / submitter</span><select id="initiative-created-by" name="createdById">${state.data.users.map(u=>`<option value="${u.id}" ${u.id===d.createdById?'selected':''}>${escapeHtml(u.name)} · ${escapeHtml(u.email)}</option>`).join('')}</select><small>Controls the account associated with this record. It remains separate from Project Owner Name.</small></label>`:`<input id="initiative-created-by" name="createdById" type="hidden" value="${escapeAttr(state.user.id)}"><div class="alert info span-2">Record account / submitter: <strong>${escapeHtml(state.user.name)}</strong></div>`;
     const evidenceOptions=['Not available','In progress','Available','Not applicable'];
@@ -1094,7 +1136,7 @@ This will also delete them from the database and cannot be undone. Export the CS
         <label class="field"><span>Legacy / source reference no.</span><input id="initiative-source-reference" name="sourceReference" value="${escapeAttr(d.sourceReference)}"></label><label class="field"><span>Implementation year *</span><select id="initiative-year" name="year" required>${yearOptions(d.year)}</select></label>
         <label class="field span-2"><span>Initiative name *</span><input id="initiative-name" name="initiativeName" maxlength="150" required value="${escapeAttr(d.initiativeName)}"></label><label class="field span-2"><span>Project description *</span><textarea id="initiative-project-description" name="projectDescription" required>${escapeHtml(d.projectDescription)}</textarea></label>
         <label class="field"><span>Lead department *</span><select id="initiative-department" name="departmentId" required>${scopedDepartments.map(x=>`<option value="${x.id}" ${x.id===d.departmentId?'selected':''}>${escapeHtml(x.name)}</option>`).join('')}</select></label><label class="field"><span>Initiative category *</span><select id="initiative-category" name="category" required>${formOptions(['New Initiative','Carry Forward Initiative','Business as usual'],d.category)}</select></label>
-        <label class="field"><span>Management priority</span><select id="initiative-priority" name="managementPriority">${formOptions(['Strategic','High','Medium','Operational'],d.managementPriority)}</select></label><label class="field"><span>Priority status *</span><select id="initiative-priority-status" name="priorityStatus" required>${formOptions(['Not Assessed','Watchlist / Under Review','Recommended','Dept Monitoring','Strategic Priority'],d.priorityStatus)}</select></label>
+        <label class="field"><span>Management Priority</span><select id="initiative-priority" name="managementPriority">${formOptions(['Strategic','Operational','Not Assessed'],d.managementPriority)}</select><small>Classifies whether the initiative is strategic, operational or not yet assessed.</small></label><label class="field"><span>Priority Level *</span><select id="initiative-priority-status" name="priorityStatus" required>${formOptions(['High','Medium','Low','Not Assessed'],d.priorityStatus)}</select><small>Records the relative level of management attention.</small></label>
         <label class="field"><span>Executive sponsor *</span><input id="initiative-executive-sponsor" name="executiveSponsor" required value="${escapeAttr(d.executiveSponsor)}"></label><label class="field"><span>Project owner name *</span><input id="initiative-owner" name="projectOwnerName" required value="${escapeAttr(d.projectOwnerName)}"><small>Shown in the Enterprise Initiative Register.</small></label>
         <label class="field"><span>Delivery lead *</span><input id="initiative-delivery-lead" name="deliveryLead" required value="${escapeAttr(d.deliveryLead)}"></label><label class="field"><span>Start date</span><input id="initiative-start-date" name="startDate" type="date" value="${escapeAttr(d.startDate)}"></label><label class="field"><span>Target completion date</span><input id="initiative-target-date" name="targetDate" type="date" value="${escapeAttr(d.targetDate)}"></label>
         <label class="field"><span>Status</span><select id="initiative-status" name="deliveryStatus">${formOptions(['Planning','In Progress','At Risk','On Hold','Completed'],d.deliveryStatus)}</select></label><label class="field"><span>Overall risk level</span><select id="initiative-risk" name="overallRiskLevel">${formOptions(['Low','Medium','High','Extreme'],d.overallRiskLevel)}</select></label>
@@ -1137,6 +1179,8 @@ This will also delete them from the database and cannot be undone. Export the CS
     updateInitiativeFormSummary(form);
     form.addEventListener('submit',async event=>{
       event.preventDefault();if(!form.reportValidity())return;const f=collectInitiativeForm(form);
+      f.managementPriority=normaliseManagementPriority(f.managementPriority);
+      f.priorityStatus=normalisePriorityLevel(f.priorityStatus);
       if(f.targetDate&&f.startDate&&f.targetDate<f.startDate)throw new Error('Target completion date cannot be before the start date.');
       if(f.hrCollaborationRequirement==='Required'&&(!String(f.hrOwner||'').trim()||!String(f.affectedGroups||'').trim()))throw new Error('HR owner and affected workforce groups are required when HR collaboration is required.');
       if(f.hrReviewStatus==='Conditionally supported'&&!String(f.hrComments||'').trim())throw new Error('HR conditions or required actions must be recorded for conditional support.');
@@ -1154,7 +1198,7 @@ This will also delete them from the database and cannot be undone. Export the CS
   function openInitiativeView(item){
     if(!item)return;const d=item.formData||{},p=phase3(item),pillar=state.data.strategicPillars?.find(x=>x.id===(d.strategicPillarId||item.strategicPillarId))?.name||item.strategicPillarName||'Not assigned',score=readinessScore(item);
     openModal(item.title,'Comprehensive Initiative Detail',`<div class="summary-strip"><div><small>Approved Budget</small><strong>${money(d.approvedBudget??item.approvedBudget)}</strong></div><div><small>Governed CBA</small><strong>${governedCba(item)===null?'Not assessed':governedCba(item).toFixed(2)}</strong></div><div><small>Benefit status</small><strong>${pretty(benefitStatus(item))}</strong></div><div><small>Decision readiness</small><strong>${score===null?'Not assessed':score.toFixed(1)+'%'}</strong></div><div><small>Year</small><strong>${item.year}</strong></div></div><div class="initiative-view-actions"><button class="btn primary compact" data-action="manage-phase3" data-id="${item.id}">Manage Value & Governance</button><button class="btn outline compact" data-action="edit-initiative" data-id="${item.id}">Edit Initiative</button></div><div class="detail-sections">
-      <section><h3>Profile & ownership</h3><div class="profile-details"><div class="detail-box"><small>Code</small><strong>${escapeHtml(item.code)}</strong></div><div class="detail-box"><small>Project owner</small><strong>${escapeHtml(d.projectOwnerName||item.owner||'Unassigned')}</strong></div><div class="detail-box"><small>Executive sponsor</small><strong>${escapeHtml(d.executiveSponsor||'Not provided')}</strong></div><div class="detail-box"><small>Delivery lead</small><strong>${escapeHtml(d.deliveryLead||'Not provided')}</strong></div><div class="detail-box"><small>Department</small><strong>${escapeHtml(departmentName(item.departmentId))}</strong></div><div class="detail-box"><small>Category</small><strong>${escapeHtml(d.category||pretty(item.classification))}</strong></div></div></section>
+      <section><h3>Profile & ownership</h3><div class="profile-details"><div class="detail-box"><small>Code</small><strong>${escapeHtml(item.code)}</strong></div><div class="detail-box"><small>Project owner</small><strong>${escapeHtml(d.projectOwnerName||item.owner||'Unassigned')}</strong></div><div class="detail-box"><small>Executive sponsor</small><strong>${escapeHtml(d.executiveSponsor||'Not provided')}</strong></div><div class="detail-box"><small>Delivery lead</small><strong>${escapeHtml(d.deliveryLead||'Not provided')}</strong></div><div class="detail-box"><small>Department</small><strong>${escapeHtml(departmentName(item.departmentId))}</strong></div><div class="detail-box"><small>Category</small><strong>${escapeHtml(d.category||pretty(item.classification))}</strong></div><div class="detail-box"><small>Management Priority</small><strong>${escapeHtml(normaliseManagementPriority(d.managementPriority))}</strong></div><div class="detail-box"><small>Priority Level</small><strong>${escapeHtml(resolvePriorityLevel(d.priorityStatus,d.managementPriority))}</strong></div></div></section>
       <section><h3>Strategy & ICT</h3><div class="profile-details"><div class="detail-box"><small>HOME31 pillar</small><strong>${escapeHtml(pillar)}</strong></div><div class="detail-box"><small>HOME31 fit</small><strong>${escapeHtml(d.home31FitDecision||'Derived automatically')}</strong></div><div class="detail-box"><small>Strategic thrust</small><strong>${escapeHtml(d.strategicThrust||'Not provided')}</strong></div><div class="detail-box"><small>System type</small><strong>${escapeHtml(d.systemType||'Not provided')}</strong></div><div class="detail-box"><small>ICT classification</small><strong>${escapeHtml(d.ictClassification||'Not provided')}</strong></div><div class="detail-box"><small>Overall risk</small><strong>${escapeHtml(d.overallRiskLevel||pretty(item.priority||'MEDIUM'))}</strong></div></div></section>
       <section><h3>Value & governance</h3><div class="profile-details"><div class="detail-box"><small>CBA status</small><strong>${pretty(cbaStatus(item))}</strong></div><div class="detail-box"><small>Management treatment</small><strong>${escapeHtml(p.managementTreatment?pretty(p.managementTreatment):'Not recorded')}</strong></div><div class="detail-box"><small>Actual benefit</small><strong>${escapeHtml(benefitActual(item))}</strong></div><div class="detail-box"><small>Benefit measurement date</small><strong>${formatDate(p.latestBenefitMeasurementDate)}</strong></div><div class="detail-box"><small>Latest Finance update</small><strong>${formatDate(p.financeReportingDate)}</strong></div><div class="detail-box"><small>Decision status</small><strong>${p.decisionReadinessStatus?pretty(p.decisionReadinessStatus):'Not assessed'}</strong></div></div></section>
       <section><h3>Value, HR & evidence</h3><div class="profile-details"><div class="detail-box"><small>Value measure</small><strong>${escapeHtml(d.valueMeasure||'Not provided')}</strong></div><div class="detail-box"><small>Target</small><strong>${escapeHtml(d.targetValue||'Not provided')}</strong></div><div class="detail-box"><small>HR collaboration</small><strong>${escapeHtml(d.hrCollaborationRequirement||'Not assessed')}</strong></div><div class="detail-box"><small>HR review</small><strong>${escapeHtml(d.hrReviewStatus||'Not submitted')}</strong></div><div class="detail-box"><small>People impact</small><strong>${escapeHtml(d.peopleImpactLevel||'Not assessed')}</strong></div><div class="detail-box"><small>Evidence reference</small><strong>${escapeHtml(d.evidenceReference||'Not provided')}</strong></div></div></section>
@@ -1344,8 +1388,8 @@ This will also delete them from the database and cannot be undone. Export the CS
   }
   function downloadInitiativeTemplate(){
     downloadCsv('home31-initiative-import-template.csv',[
-      ['code','title','owner','department_code','year','classification','status','requested_budget','approved_budget','committed_budget','utilised_budget','progress','priority','start_date','target_date','description'],
-      ['','Example Initiative','Owner Name',state.data.departments[0]?.code||'CPS',state.filters.year||new Date().getFullYear(),'NEW','DRAFT','100000','80000','0','0','0','MEDIUM','2027-01-01','2027-12-31','Example only — remove before import']
+      ['code','title','owner','department_code','year','classification','status','requested_budget','approved_budget','committed_budget','utilised_budget','progress','management_priority','priority_level','overall_risk','start_date','target_date','description'],
+      ['','Example Initiative','Owner Name',state.data.departments[0]?.code||'CPS',state.filters.year||new Date().getFullYear(),'NEW','DRAFT','100000','80000','0','0','0','Strategic','High','Medium','2027-01-01','2027-12-31','Example only — remove before import']
     ]);
   }
   function validateInitiativeImport(text,fileName){
@@ -1355,15 +1399,15 @@ This will also delete them from the database and cannot be undone. Export the CS
     const missing=required.filter(h=>!headers.includes(h));if(missing.length)throw new Error('Missing required column'+(missing.length>1?'s':'')+': '+missing.join(', '));
     const existingCodes=new Set(state.data.initiatives.filter(i=>!i.archived&&i.code).map(i=>normaliseKey(i.code)));
     const existingKeys=new Set(state.data.initiatives.filter(i=>!i.archived).map(i=>initiativeDuplicateKey(i)));
-    const fileCodes=new Set(),fileKeys=new Set(),validClassifications=new Set(['NEW','CARRY_FORWARD','EVOLUTION','REPEAT']),validStatuses=new Set(['DRAFT','SUBMITTED','UNDER_REVIEW','APPROVED','RETURNED','REJECTED','COMPLETED']),validPriorities=new Set(['LOW','MEDIUM','HIGH','CRITICAL','EXTREME']);
+    const fileCodes=new Set(),fileKeys=new Set(),validClassifications=new Set(['NEW','CARRY_FORWARD','EVOLUTION','REPEAT']),validStatuses=new Set(['DRAFT','SUBMITTED','UNDER_REVIEW','APPROVED','RETURNED','REJECTED','COMPLETED']),validManagementPriorities=new Set(['STRATEGIC','OPERATIONAL','NOT_ASSESSED']),validPriorityLevels=new Set(['HIGH','MEDIUM','LOW','NOT_ASSESSED']),validRiskPriorities=new Set(['LOW','MEDIUM','HIGH','CRITICAL','EXTREME']);
     const rows=[];
     parsed.slice(1).forEach((values,index)=>{
       const obj={};headers.forEach((h,i)=>obj[h]=String(values[i]??'').trim());
       const errors=[],warnings=[],dept=state.data.departments.find(d=>normaliseKey(d.code)===normaliseKey(obj.department_code)),year=Number(obj.year),reportingYear=state.data.reportingYears.find(y=>Number(y.year)===year);
-      const classification=(obj.classification||'NEW').toUpperCase().replace(/[- ]/g,'_'),status=(obj.status||'DRAFT').toUpperCase().replace(/[- ]/g,'_'),priority=(obj.priority||'MEDIUM').toUpperCase().replace(/[- ]/g,'_');
+      const classification=(obj.classification||'NEW').toUpperCase().replace(/[- ]/g,'_'),status=(obj.status||'DRAFT').toUpperCase().replace(/[- ]/g,'_'),managementPriority=(obj.management_priority||'NOT_ASSESSED').toUpperCase().replace(/[- ]/g,'_'),priorityLevel=(obj.priority_level||obj.priority_status||'NOT_ASSESSED').toUpperCase().replace(/[- ]/g,'_'),overallRisk=(obj.overall_risk||obj.priority||'MEDIUM').toUpperCase().replace(/[- ]/g,'_');
       const numberFields=['requested_budget','approved_budget','committed_budget','utilised_budget','progress'];
       if(!obj.title)errors.push('Title is required');if(!obj.owner)errors.push('Owner is required');if(!dept)errors.push('Unknown department code');if(!Number.isInteger(year))errors.push('Year must be a whole number');else if(!reportingYear)errors.push('Reporting year is not configured');
-      if(!validClassifications.has(classification))errors.push('Invalid classification');if(!validStatuses.has(status))errors.push('Invalid status');if(!validPriorities.has(priority))errors.push('Invalid priority');
+      if(!validClassifications.has(classification))errors.push('Invalid classification');if(!validStatuses.has(status))errors.push('Invalid status');if(!validManagementPriorities.has(managementPriority))errors.push('Management Priority must be Strategic, Operational or Not Assessed');if(!validPriorityLevels.has(priorityLevel))errors.push('Priority Level must be High, Medium, Low or Not Assessed');if(!validRiskPriorities.has(overallRisk))errors.push('Overall Risk must be Low, Medium, High, Critical or Extreme');
       numberFields.forEach(k=>{if(obj[k]!==''&&!Number.isFinite(Number(obj[k])))errors.push(k+' must be numeric');});
       const approved=Number(obj.approved_budget||0),progress=Number(obj.progress||0),committed=Number(obj.committed_budget||0),utilised=Number(obj.utilised_budget||0);
       if(approved<0)errors.push('Approved budget cannot be negative');if(progress<0||progress>100)errors.push('Progress must be between 0 and 100');if(committed<0||utilised<0)errors.push('Budget values cannot be negative');if(utilised>approved&&approved>=0)warnings.push('Utilised budget exceeds Approved Budget');
@@ -1374,7 +1418,7 @@ This will also delete them from the database and cannot be undone. Export the CS
         if(!initiativeCode||isYearOnlyInitiativeCode(initiativeCode,year)){initiativeCode=generateInitiativeCode(year,dept.code,reservedCodes,index+1);generatedCode=true;warnings.push('A valid HOME31 initiative code was generated automatically');}
         else if(!isValidInitiativeCode(initiativeCode,year,dept.code))errors.push('Code must follow AMP'+String(year).slice(-2)+'-'+cleanInitiativeCodePart(dept.code,'GEN')+'-######');
       }
-      const record={code:initiativeCode,title:obj.title,owner:obj.owner,ownerId:state.user.id,departmentId:dept?.id||'',year,reportingYearId:reportingYear?.id||'',classification,status,requestedBudget:Number(obj.requested_budget||obj.approved_budget||0),approvedBudget:approved,committedBudget:committed,utilisedBudget:utilised,progress,priority,startDate:obj.start_date||'',targetDate:obj.target_date||'',description:obj.description||'',formData:{projectOwnerName:obj.owner,projectDescription:obj.description||'',approvedBudget:approved,progress:progress,startDate:obj.start_date||'',targetDate:obj.target_date||''}};
+      const record={code:initiativeCode,title:obj.title,owner:obj.owner,ownerId:state.user.id,departmentId:dept?.id||'',year,reportingYearId:reportingYear?.id||'',classification,status,requestedBudget:Number(obj.requested_budget||obj.approved_budget||0),approvedBudget:approved,committedBudget:committed,utilisedBudget:utilised,progress,priority:overallRisk,startDate:obj.start_date||'',targetDate:obj.target_date||'',description:obj.description||'',formData:{projectOwnerName:obj.owner,projectDescription:obj.description||'',approvedBudget:approved,progress:progress,startDate:obj.start_date||'',targetDate:obj.target_date||'',managementPriority:normaliseManagementPriority(managementPriority),priorityStatus:normalisePriorityLevel(priorityLevel),overallRiskLevel:displayRisk(overallRisk)}};
       const codeKey=normaliseKey(record.code),duplicateKey=dept&&Number.isInteger(year)?initiativeDuplicateKey(record):'';
       if(codeKey&&!generatedCode&&(existingCodes.has(codeKey)||fileCodes.has(codeKey)))errors.push(existingCodes.has(codeKey)?'Duplicate code already exists':'Duplicate code within this file');
       if(duplicateKey&&(existingKeys.has(duplicateKey)||fileKeys.has(duplicateKey)))errors.push(existingKeys.has(duplicateKey)?'Same title, department and year already exists':'Duplicate title, department and year within this file');
@@ -1419,8 +1463,8 @@ This will also delete them from the database and cannot be undone. Export the CS
     let rows=[],name='home31-'+type+'-'+new Date().toISOString().slice(0,10)+'.csv';
     if(type==='initiatives'){
       const source=state.data.initiatives.filter(i=>!i.archived&&(state.filters.year?Number(i.year)===Number(state.filters.year):true)&&(state.filters.department==='all'||i.departmentId===state.filters.department)&&(state.filters.status==='all'||i.status===state.filters.status));
-      rows=[['Code','Title','Project Owner','Department Code','Department','Year','Classification','Status','Requested Budget','Approved Budget','Committed Budget','Utilised Budget','Progress','Priority','Start Date','Target Date','Description'],...source.map(i=>{const d=i.formData||{},dept=state.data.departments.find(x=>x.id===i.departmentId);return[i.code,i.title,d.projectOwnerName||i.owner,dept?.code||'',dept?.name||i.departmentName||'',i.year,i.classification,i.status,i.requestedBudget,i.approvedBudget,i.committedBudget,i.utilisedBudget,d.progress??i.progress,i.priority,i.startDate,i.targetDate,d.projectDescription||i.description||''];})];
-    }else if(type==='projects')rows=[['Code','Delivery Record','Type','Parent Initiative','Owner','Department','Year','Status','Health','Risk','Progress','Readiness','Start','Target','Next Action'],...scopedDeliveryItems().map(p=>[p.code,p.title,pretty(p.sourceType),p.sourceType==='INITIATIVE'?'Enterprise initiative':(p.initiativeTitle||initiativeTitle(p.initiativeId)),p.owner,departmentName(p.departmentId),p.year,pretty(p.status),pretty(p.health),p.risk||'',p.progress,p.readiness||0,p.startDate,p.targetDate,p.nextAction||''])];
+      rows=[['Code','Title','Project Owner','Department Code','Department','Year','Classification','Status','Requested Budget','Approved Budget','Committed Budget','Utilised Budget','Progress','Management Priority','Priority Level','Overall Risk','Start Date','Target Date','Description'],...source.map(i=>{const d=i.formData||{},dept=state.data.departments.find(x=>x.id===i.departmentId);return[i.code,i.title,d.projectOwnerName||i.owner,dept?.code||'',dept?.name||i.departmentName||'',i.year,i.classification,i.status,i.requestedBudget,i.approvedBudget,i.committedBudget,i.utilisedBudget,d.progress??i.progress,normaliseManagementPriority(d.managementPriority),resolvePriorityLevel(d.priorityStatus,d.managementPriority),d.overallRiskLevel||displayRisk(i.priority),i.startDate,i.targetDate,d.projectDescription||i.description||''];})];
+    }else if(type==='projects')rows=[['Code','Delivery Record','Type','Parent Initiative','Owner','Department','Year','Status','Health','Management Priority','Priority Level','Overall Risk','Progress','Readiness','Start','Target','Next Action'],...scopedDeliveryItems().map(p=>[p.code,p.title,pretty(p.sourceType),p.sourceType==='INITIATIVE'?'Enterprise initiative':(p.initiativeTitle||initiativeTitle(p.initiativeId)),p.owner,departmentName(p.departmentId),p.year,pretty(p.status),pretty(p.health),normaliseManagementPriority(p.managementPriority),normalisePriorityLevel(p.priorityStatus),p.risk||'',p.progress,p.readiness||0,p.startDate,p.targetDate,p.nextAction||''])];
     else if(type==='departments')rows=[['Code','Department','Users','Initiatives','Approved Budget'],...state.data.departments.map(d=>[d.code,d.name,state.data.users.filter(u=>u.departmentId===d.id).length,state.data.initiatives.filter(i=>i.departmentId===d.id&&!i.archived).length,state.data.initiatives.filter(i=>i.departmentId===d.id&&!i.archived).reduce((s,i)=>s+Number(i.approvedBudget||0),0)])];
     else if(type==='audit')rows=[['Time','User','Action','Entity','Details'],...(state.data.audit||[]).map(a=>[a.time,a.user,a.action,a.entity,a.details])];
     else if(type==='comparison'){const old=state.data.initiatives.filter(i=>i.year===state.compareFrom),cur=state.data.initiatives.filter(i=>i.year===state.compareTo);rows=[['Initiative','AMP '+state.compareFrom,'AMP '+state.compareTo,'Movement'],...comparisonMovements(old,cur).map(m=>[m.title,m.old,m.current,m.diff])];}
