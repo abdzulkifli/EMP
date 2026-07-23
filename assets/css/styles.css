@@ -599,7 +599,7 @@ td .muted,td small,.record-meta,.table-meta{font-size:12px;line-height:1.45;colo
 .priority-issues-summary .overdue{border-left:4px solid #94515c}
 .priority-issues-summary .decision{border-left:4px solid var(--blue-600)}
 
-.management-attention-filters{display:grid;grid-template-columns:minmax(240px,1.5fr) repeat(4,minmax(145px,1fr)) auto;gap:9px;align-items:end;padding:14px 16px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#f7f9fb}
+.management-attention-filters{display:grid;grid-template-columns:minmax(240px,1.5fr) repeat(5,minmax(135px,1fr)) auto;gap:9px;align-items:end;padding:14px 16px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#f7f9fb}
 .management-attention-filters label{display:grid;gap:5px;min-width:0}
 .management-attention-filters label>span{font-size:7px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .management-attention-filters input,.management-attention-filters select{width:100%;min-height:38px;padding:9px 10px;border:1px solid var(--line-strong);border-radius:9px;background:#fff;color:var(--ink);outline:none}
@@ -816,7 +816,7 @@ button,input,select,textarea,table,th,td{font-family:var(--font)}
 .management-overview-tools label{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:9px;font-weight:800}
 .management-overview-tools select{min-height:34px;padding:0 9px;border:1px solid var(--line-strong);border-radius:8px;background:#fff;color:var(--ink)}
 .management-overview-table-wrap{position:relative;max-width:100%}
-.management-overview-table{min-width:1320px}
+.management-overview-table{min-width:1450px}
 .management-overview-table th,.management-overview-table td{padding:13px 14px;font-size:11px;line-height:1.45}
 .management-overview-table th{font-size:9px}
 .management-overview-table tbody tr:nth-child(even){background:#fbfcfd}
@@ -825,7 +825,7 @@ button,input,select,textarea,table,th,td{font-family:var(--font)}
 .management-sortable:after{content:' ↕';color:#9aa6b3;font-size:8px}
 .management-sortable.sorted-asc:after{content:' ↑';color:var(--home31-brand)}
 .management-sortable.sorted-desc:after{content:' ↓';color:var(--home31-brand)}
-.management-sticky-project{position:sticky;left:0;z-index:1;background:inherit;box-shadow:1px 0 0 var(--line)}
+.management-sticky-project{position:sticky;left:260px;z-index:1;background:inherit;box-shadow:1px 0 0 var(--line)}
 .management-overview-table thead .management-sticky-project{z-index:3;background:#f7f8fa}
 .management-overview-table td.management-sticky-project strong{font-size:12px}
 .management-row-actions{display:flex;gap:6px;white-space:nowrap}
@@ -868,3 +868,8 @@ button,input,select,textarea,table,th,td{font-family:var(--font)}
   .management-overview-table{min-width:0}
   .management-sticky-project{position:static;box-shadow:none}
 }
+
+/* HOME31 V9.4.5 — Management Priority and Priority Level alignment */
+.management-overview-table th:nth-child(1),.management-overview-table th:nth-child(2){min-width:130px}
+
+/* HOME31 V9.4.6 — Priority terminology consistency across form, filters, import and export */
