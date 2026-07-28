@@ -10,41 +10,58 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/styles.css?v=9.4.4-branding-force">
+  <link rel="stylesheet" href="assets/css/styles.css?v=9.5.1-agreed-cinematic">
 </head>
-<body data-home31-build="9.4.4-branding-force">
+<body data-home31-build="9.5.1-agreed-cinematic">
   <noscript><div class="fatal">HOME31 requires JavaScript to run.</div></noscript>
 
-  <section id="login-screen" class="login-screen" aria-labelledby="login-title">
-    <div class="login-visual">
-      <div class="login-brand"><span class="brand-mark">H31</span><div><strong>HOME31</strong><small>Corporate Planning &amp; Strategy | LPPSA</small></div></div>
-      <div class="login-copy">
-        <span class="eyebrow light">Enterprise planning & delivery</span>
+  <section id="login-screen" class="login-screen cinematic-login" aria-labelledby="login-title">
+    <canvas id="login-particle-canvas" class="login-particle-canvas" aria-hidden="true"></canvas>
+    <div class="cinematic-grid" aria-hidden="true"></div>
+    <div class="cinematic-scan" aria-hidden="true"></div>
+    <div class="cinematic-orbit orbit-one" aria-hidden="true"></div>
+    <div class="cinematic-orbit orbit-two" aria-hidden="true"></div>
+
+    <div class="login-story-panel">
+      <div class="login-brand cinematic-brand"><span class="brand-mark">H31</span><div><strong>HOME31</strong><small>Corporate Planning &amp; Strategy | LPPSA</small></div></div>
+      <div class="login-copy cinematic-copy">
+        <span class="eyebrow light">Enterprise command platform</span>
         <h1>Enterprise Management Platform</h1>
-        <p>One integrated workspace for strategy, initiatives, readiness, people collaboration, risk and management oversight.</p>
+        <p>One integrated workspace for strategy, initiatives, projects, approved budgets, readiness, risk and management oversight.</p>
       </div>
-      <div class="login-highlights">
-        <div><strong>Dynamic years</strong><span>Plan beyond 2031 without code changes.</span></div>
-        <div><strong>Exact budgets</strong><span>Approved Budget is the official cost basis.</span></div>
-        <div><strong>Role scoped</strong><span>Users see only authorised departments.</span></div>
+      <div class="cinematic-metrics" aria-hidden="true">
+        <article><span>STRATEGY</span><strong>Aligned</strong><i></i></article>
+        <article><span>PORTFOLIO</span><strong>Connected</strong><i></i></article>
+        <article><span>DELIVERY</span><strong>Visible</strong><i></i></article>
+      </div>
+      <div class="cinematic-network" aria-hidden="true">
+        <span class="network-core">HOME31</span>
+        <span class="network-node n1">Strategy</span>
+        <span class="network-node n2">Budget</span>
+        <span class="network-node n3">Projects</span>
+        <span class="network-node n4">Risk</span>
+        <span class="network-node n5">Management</span>
       </div>
     </div>
-    <div class="login-panel">
-      <form id="login-form" class="login-card" autocomplete="on">
-        <div class="login-icon">🔐</div>
-        <h2 id="login-title">Sign in to HOME31</h2>
-        <p id="mode-copy">Please enter your HOME31 email address and password.</p>
+
+    <div class="login-form-panel cinematic-form-panel">
+      <form id="login-form" class="login-card cinematic-card" autocomplete="on">
+        <div class="login-card-brand"><span class="brand-mark small">H31</span><div><strong>HOME31</strong><small>Enterprise Management Platform</small></div></div>
+        <div class="login-heading">
+          <span class="eyebrow light">Secure access</span>
+          <h2 id="login-title">Sign in to HOME31</h2>
+          <p id="mode-copy">Use your authorised HOME31 account.</p>
+        </div>
         <div id="login-alert" class="alert danger hidden" role="alert"></div>
-        <label class="field"><span>Email</span><input id="login-email" type="email" autocomplete="username" inputmode="email" placeholder="Enter your HOME31 email address" required></label>
-        <label class="field"><span>Password</span><input id="login-password" type="password" autocomplete="current-password" placeholder="Enter your password" required></label>
-        <button class="btn primary wide" type="submit">Sign in</button>
+        <label class="login-field"><span>Email address</span><div class="login-input-wrap"><span class="login-input-icon" aria-hidden="true">@</span><input id="login-email" type="email" autocomplete="username" inputmode="email" placeholder="name@lppsa.gov.my" required></div></label>
+        <label class="login-field"><span>Password</span><div class="login-input-wrap"><span class="login-input-icon" aria-hidden="true">●</span><input id="login-password" type="password" autocomplete="current-password" placeholder="Enter your password" required><button id="login-password-toggle" class="login-password-toggle" type="button" aria-label="Show password" aria-pressed="false">Show</button></div></label>
+        <button class="btn primary wide login-submit" type="submit"><span>Sign in</span><i aria-hidden="true">→</i></button>
+        <div class="login-security-note"><span class="security-dot"></span><span>Authorised HOME31 accounts only</span></div>
         <div class="login-author-credit" aria-label="Application identity and author">
-          <span>HOME31 · Corporate Planning &amp; Strategy | LPPSA · Version 9.4.4</span>
+          <span>HOME31 · Corporate Planning &amp; Strategy | LPPSA</span>
           <strong>Live Production</strong>
           <small>Author &amp; Developer: Abdullah Zulkifli</small>
-          <small>Corporate Planning &amp; Strategy</small>
         </div>
-
       </form>
     </div>
   </section>
@@ -82,7 +99,7 @@
 
   <script src="config.js"></script>
   <script src="assets/js/data.js?v=7.1"></script>
-  <script src="assets/js/api.js?v=9.4.4-branding-force"></script>
-  <script src="assets/js/app.js?v=9.4.4-branding-force"></script>
+  <script src="assets/js/api.js?v=9.5.1-agreed-cinematic"></script>
+  <script src="assets/js/app.js?v=9.5.1-agreed-cinematic"></script>
 </body>
 </html>
