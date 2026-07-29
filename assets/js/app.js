@@ -533,14 +533,14 @@
   }
 
   function managementOverviewPriority(item){
-    const raw=String(item.managementPriority||'').trim();
+    const level=normalizePriorityLevel(item.priorityStatus);
     const canonical={
-      strategic:{label:'Strategic',code:'STRATEGIC',rank:1},
-      high:{label:'High',code:'HIGH',rank:2},
-      medium:{label:'Medium',code:'MEDIUM',rank:3},
-      operational:{label:'Operational',code:'OPERATIONAL',rank:4}
+      'High':{label:'High',code:'HIGH',rank:1,filter:'high'},
+      'Medium':{label:'Medium',code:'MEDIUM',rank:2,filter:'medium'},
+      'Low':{label:'Low',code:'LOW',rank:3,filter:'low'},
+      'Not Assessed':{label:'Not Assessed',code:'NOT_ASSESSED',rank:4,filter:'not assessed'}
     };
-    return canonical[raw.toLowerCase()]||{label:'Not recorded',code:'NOT_RECORDED',rank:5};
+    return canonical[level]||canonical['Not Assessed'];
   }
   function managementOverviewSort(rows){
     const direction=state.managementOverviewDirection==='asc'?1:-1,key=state.managementOverviewSort;
@@ -589,14 +589,14 @@
 
     const query=String(state.managementAttentionSearch||'').trim().toLowerCase();
     const filteredRows=baseRows.filter(({i,issueEntries,categories})=>{
-      const managementPriority=String(i.managementPriority||'').trim().toLowerCase()||'not recorded';
-      if(state.managementAttentionPriority!=='all'&&managementPriority!==String(state.managementAttentionPriority).toLowerCase())return false;
+      const priorityLevel=managementOverviewPriority(i).filter;
+      if(state.managementAttentionPriority!=='all'&&priorityLevel!==String(state.managementAttentionPriority).toLowerCase())return false;
       if(state.managementAttentionIssue!=='all'&&!categories.has(state.managementAttentionIssue))return false;
       const itemDepartment=String(i.departmentId||i.departmentName||'unassigned');
       if(state.managementAttentionDepartment!=='all'&&itemDepartment!==String(state.managementAttentionDepartment))return false;
       if(state.managementAttentionType!=='all'&&i.sourceType!==state.managementAttentionType)return false;
       if(query){
-        const searchable=[i.title,i.code,i.projectOwner||i.owner,i.departmentName,i.year,i.sourceType,i.managementPriority,...issueEntries.map(entry=>entry.label)].join(' ').toLowerCase();
+        const searchable=[i.title,i.code,i.projectOwner||i.owner,i.departmentName,i.year,i.sourceType,managementOverviewPriority(i).label,...issueEntries.map(entry=>entry.label)].join(' ').toLowerCase();
         if(!searchable.includes(query))return false;
       }
       return true;
@@ -620,7 +620,7 @@
 
     return `<section class="card table-card executive-attention-table management-overview-panel">
       <div class="table-header management-overview-heading">
-        <div><strong>Management Overview</strong><span class="dashboard-table-note">Management Priority uses the saved initiative dropdown value: Strategic, High, Medium or Operational. Blank records are shown as Not recorded.</span></div>
+        <div><strong>Management Overview</strong><span class="dashboard-table-note">Priority Level uses the saved initiative value: High, Medium, Low or Not Assessed. Linked projects inherit the Priority Level from their parent initiative.</span></div>
         <div class="management-overview-tools"><span class="badge ${filteredRows.length?'amber':'green'}">${filteredRows.length} of ${baseRows.length} records</span><label><span>Rows</span><select data-management-overview-page-size><option value="5" ${pageSize===5?'selected':''}>5</option><option value="10" ${pageSize===10?'selected':''}>10</option><option value="15" ${pageSize===15?'selected':''}>15</option></select></label></div>
       </div>
       <div class="priority-issues-summary" aria-label="Management overview summary">
@@ -631,14 +631,14 @@
       </div>
       <div class="management-attention-filters">
         <label class="management-attention-search"><span>Search Management Overview</span><input type="search" data-management-attention-search value="${escapeAttr(state.managementAttentionSearch||'')}" placeholder="Project, owner, department or code"></label>
-        <label><span>Management priority</span><select data-management-attention-filter="priority"><option value="all" ${state.managementAttentionPriority==='all'?'selected':''}>All management priorities</option><option value="strategic" ${state.managementAttentionPriority==='strategic'?'selected':''}>Strategic</option><option value="high" ${state.managementAttentionPriority==='high'?'selected':''}>High</option><option value="medium" ${state.managementAttentionPriority==='medium'?'selected':''}>Medium</option><option value="operational" ${state.managementAttentionPriority==='operational'?'selected':''}>Operational</option><option value="not recorded" ${state.managementAttentionPriority==='not recorded'?'selected':''}>Not recorded</option></select></label>
+        <label><span>Priority Level</span><select data-management-attention-filter="priority"><option value="all" ${state.managementAttentionPriority==='all'?'selected':''}>All priority levels</option><option value="high" ${state.managementAttentionPriority==='high'?'selected':''}>High</option><option value="medium" ${state.managementAttentionPriority==='medium'?'selected':''}>Medium</option><option value="low" ${state.managementAttentionPriority==='low'?'selected':''}>Low</option><option value="not assessed" ${state.managementAttentionPriority==='not assessed'?'selected':''}>Not Assessed</option></select></label>
         <label><span>Attention type</span><select data-management-attention-filter="issue"><option value="all" ${state.managementAttentionIssue==='all'?'selected':''}>All attention types</option><option value="delivery" ${state.managementAttentionIssue==='delivery'?'selected':''}>Delivery condition</option><option value="overdue" ${state.managementAttentionIssue==='overdue'?'selected':''}>Overdue</option><option value="decision" ${state.managementAttentionIssue==='decision'?'selected':''}>Decision required</option><option value="next-action" ${state.managementAttentionIssue==='next-action'?'selected':''}>Next action missing</option><option value="ownership" ${state.managementAttentionIssue==='ownership'?'selected':''}>Owner missing</option><option value="target" ${state.managementAttentionIssue==='target'?'selected':''}>Target date missing</option></select></label>
         <label><span>Department</span><select data-management-attention-filter="department"><option value="all">All visible departments</option>${departmentRows.map(department=>`<option value="${escapeAttr(department.id)}" ${String(state.managementAttentionDepartment)===department.id?'selected':''}>${escapeHtml(department.name)}</option>`).join('')}</select></label>
         <label><span>Record type</span><select data-management-attention-filter="type"><option value="all" ${state.managementAttentionType==='all'?'selected':''}>Initiatives + Projects</option><option value="INITIATIVE" ${state.managementAttentionType==='INITIATIVE'?'selected':''}>Initiatives only</option><option value="PROJECT" ${state.managementAttentionType==='PROJECT'?'selected':''}>Projects only</option></select></label>
         <button class="btn outline compact" data-action="management-attention-reset" ${activeFilters?'':'disabled'}>Reset filters</button>
       </div>
       <div class="table-wrap management-overview-table-wrap"><table class="management-overview-table"><thead><tr>
-        <th class="management-sortable${managementOverviewSortClass('priority')}" data-action="management-overview-sort" data-sort="priority">Management Priority</th>
+        <th class="management-sortable${managementOverviewSortClass('priority')}" data-action="management-overview-sort" data-sort="priority">Priority Level</th>
         <th class="management-sortable management-sticky-project${managementOverviewSortClass('name')}" data-action="management-overview-sort" data-sort="name">Initiative / Project</th>
         <th class="management-sortable${managementOverviewSortClass('owner')}" data-action="management-overview-sort" data-sort="owner">Owner</th>
         <th class="management-sortable${managementOverviewSortClass('department')}" data-action="management-overview-sort" data-sort="department">Department</th>
