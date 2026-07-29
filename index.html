@@ -10,9 +10,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/styles.css?v=9.5.2-management-priority-level">
+  <link rel="stylesheet" href="assets/css/styles.css?v=9.5.3-session-security">
 </head>
-<body data-home31-build="9.5.2-management-priority-level">
+<body data-home31-build="9.5.3-session-security">
   <noscript><div class="fatal">HOME31 requires JavaScript to run.</div></noscript>
 
   <section id="login-screen" class="login-screen cinematic-login" aria-labelledby="login-title">
@@ -55,6 +55,11 @@
         <div id="login-alert" class="alert danger hidden" role="alert"></div>
         <label class="login-field"><span>Email address</span><div class="login-input-wrap"><span class="login-input-icon" aria-hidden="true">@</span><input id="login-email" type="email" autocomplete="username" inputmode="email" placeholder="name@lppsa.gov.my" required></div></label>
         <label class="login-field"><span>Password</span><div class="login-input-wrap"><span class="login-input-icon" aria-hidden="true">●</span><input id="login-password" type="password" autocomplete="current-password" placeholder="Enter your password" required><button id="login-password-toggle" class="login-password-toggle" type="button" aria-label="Show password" aria-pressed="false">Show</button></div></label>
+        <label class="login-remember">
+          <input id="login-remember-email" type="checkbox">
+          <span>Remember my email on this device</span>
+        </label>
+        <p class="login-timeout-note">For your security, HOME31 signs you out after 15 minutes of inactivity.</p>
         <button class="btn primary wide login-submit" type="submit"><span>Sign in</span><i aria-hidden="true">→</i></button>
         <div class="login-security-note"><span class="security-dot"></span><span>Authorised HOME31 accounts only</span></div>
         <div class="login-author-credit" aria-label="Application identity and author">
@@ -94,12 +99,26 @@
     </div>
   </div>
 
+
+  <div id="idle-warning-layer" class="idle-warning-layer hidden" role="dialog" aria-modal="true" aria-labelledby="idle-warning-title">
+    <div class="idle-warning-card">
+      <div class="idle-warning-icon" aria-hidden="true">⏱</div>
+      <span class="eyebrow">Session security</span>
+      <h2 id="idle-warning-title">Your session is about to expire</h2>
+      <p>No activity has been detected. HOME31 will sign you out in <strong id="idle-warning-countdown">3:00</strong>.</p>
+      <div class="idle-warning-actions">
+        <button id="idle-signout-now" class="btn outline" type="button">Sign out now</button>
+        <button id="idle-stay-signed-in" class="btn primary" type="button">Stay signed in</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   <input id="csv-file" class="hidden" type="file" accept=".csv,text/csv">
 
   <script src="config.js"></script>
   <script src="assets/js/data.js?v=7.1"></script>
-  <script src="assets/js/api.js?v=9.5.2-management-priority-level"></script>
-  <script src="assets/js/app.js?v=9.5.2-management-priority-level"></script>
+  <script src="assets/js/api.js?v=9.5.3-session-security"></script>
+  <script src="assets/js/app.js?v=9.5.3-session-security"></script>
 </body>
 </html>
