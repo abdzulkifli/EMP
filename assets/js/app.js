@@ -3,6 +3,22 @@
   const api = window.HOME31_API;
   const config = api.config;
   const el = {};
+  const HOME31_SECURITY={
+    idleWarningMs:12*60*1000,
+    idleLogoutMs:15*60*1000,
+    normalAbsoluteMs:8*60*60*1000,
+    adminAbsoluteMs:4*60*60*1000,
+    rememberedEmailKey:'home31-remembered-email-v1',
+    sessionStartedKey:'home31-session-started-v1'
+  };
+  const sessionSecurity={
+    idleTimer:null,
+    countdownTimer:null,
+    lastActivity:Date.now(),
+    warningVisible:false,
+    loggingOut:false,
+    activityBound:false
+  };
   const state = {
     user:null,data:null,route:'dashboard',dashboardYear:'all',dashboardRecordType:'all',dashboardPillar:'all',dashboardFit:'all',dashboardRisk:'all',dashboardView:'all',dashboardQuarter:'all',dashboardQuadrant:'all',dashboardQuality:'all',governanceYear:'all',governanceSearch:'',governanceView:'all',filters:{year:null,department:'all',search:'',status:'all'},projectView:'list',timelineScale:'year',timelineAnchor:null,adminTab:'users',analyticsTab:'overview',adminUserFilters:{search:'',department:'all',role:'all',status:'all'},managementAttentionPriority:'all',managementAttentionIssue:'all',managementAttentionDepartment:'all',managementAttentionType:'all',managementAttentionSearch:'',managementOverviewSort:'priority',managementOverviewDirection:'asc',managementOverviewPage:1,managementOverviewPageSize:10,compareFrom:2026,compareTo:2027
   };
@@ -22,9 +38,10 @@
   document.addEventListener('DOMContentLoaded',init);
 
   async function init(){
-    ['login-screen','login-form','login-email','login-password','login-alert','mode-copy','app-shell','main-nav','page-root','user-menu','user-menu-button','user-avatar','user-name','user-role','quick-add','mobile-menu','modal-layer','modal-title','modal-eyebrow','modal-content','modal-close','toast','csv-file','footer-mode'].forEach(id=>el[toCamel(id)]=document.getElementById(id));
+    ['login-screen','login-form','login-email','login-password','login-remember-email','login-alert','mode-copy','app-shell','main-nav','page-root','user-menu','user-menu-button','user-avatar','user-name','user-role','quick-add','mobile-menu','modal-layer','modal-title','modal-eyebrow','modal-content','modal-close','idle-warning-layer','idle-warning-countdown','idle-stay-signed-in','idle-signout-now','toast','csv-file','footer-mode'].forEach(id=>el[toCamel(id)]=document.getElementById(id));
     el.modeCopy.textContent = api.isLive() ? 'Use your authorised HOME31 account.' : 'Local preview mode is active. Connect config.js to Supabase for production sign-in.';
     el.footerMode.textContent = api.isLive() ? 'Developed by Abdullah Zulkifli · Corporate Planning & Strategy' : 'Local preview mode · Supabase is not connected';
+    restoreRememberedEmail();
     bindStaticEvents();
     const current = await api.getCurrentUser();
     if(current){ await enterApp(current); } else showLogin();
@@ -33,6 +50,9 @@
   function toCamel(value){ return value.replace(/-([a-z])/g,(_,c)=>c.toUpperCase()); }
   function bindStaticEvents(){
     el.loginForm.addEventListener('submit',handleLogin);
+    if(el.loginRememberEmail)el.loginRememberEmail.addEventListener('change',persistRememberedEmail);
+    if(el.idleStaySignedIn)el.idleStaySignedIn.addEventListener('click',continueSession);
+    if(el.idleSignoutNow)el.idleSignoutNow.addEventListener('click',()=>logout('manual'));
     setupCinematicLogin();
     el.userMenuButton.addEventListener('click',()=>el.userMenu.classList.toggle('hidden'));
     document.addEventListener('click',event=>{ if(!el.userMenu.contains(event.target) && !el.userMenuButton.contains(event.target)) el.userMenu.classList.add('hidden'); });
@@ -92,6 +112,102 @@
     resize();draw();window.addEventListener('resize',resize,{passive:true});
     const screen=document.getElementById('login-screen');if(screen)screen.addEventListener('mousemove',event=>{const x=(event.clientX/window.innerWidth-.5)*10,y=(event.clientY/window.innerHeight-.5)*10;screen.style.setProperty('--mx',x+'px');screen.style.setProperty('--my',y+'px');},{passive:true});
   }
+
+  function restoreRememberedEmail(){
+    if(!el.loginEmail||!el.loginRememberEmail)return;
+    let saved='';
+    try{saved=localStorage.getItem(HOME31_SECURITY.rememberedEmailKey)||'';}catch(error){}
+    el.loginEmail.value=saved;
+    el.loginRememberEmail.checked=!!saved;
+  }
+  function persistRememberedEmail(){
+    if(!el.loginEmail||!el.loginRememberEmail)return;
+    try{
+      if(el.loginRememberEmail.checked&&el.loginEmail.value.trim())localStorage.setItem(HOME31_SECURITY.rememberedEmailKey,el.loginEmail.value.trim());
+      else localStorage.removeItem(HOME31_SECURITY.rememberedEmailKey);
+    }catch(error){}
+  }
+  function ensureSessionStart(){
+    try{
+      const value=Number(sessionStorage.getItem(HOME31_SECURITY.sessionStartedKey)||0);
+      if(!value)sessionStorage.setItem(HOME31_SECURITY.sessionStartedKey,String(Date.now()));
+    }catch(error){}
+  }
+  function sessionStartedAt(){
+    try{return Number(sessionStorage.getItem(HOME31_SECURITY.sessionStartedKey)||Date.now());}
+    catch(error){return Date.now();}
+  }
+  function absoluteSessionLimit(){
+    return state.user&&['SUPER_ADMIN','ADMIN','DEPARTMENT_ADMIN'].includes(state.user.role)?HOME31_SECURITY.adminAbsoluteMs:HOME31_SECURITY.normalAbsoluteMs;
+  }
+  function startSessionSecurity(){
+    stopSessionSecurity();
+    sessionSecurity.lastActivity=Date.now();
+    sessionSecurity.warningVisible=false;
+    if(!sessionSecurity.activityBound){
+      ['pointerdown','keydown','touchstart','scroll'].forEach(type=>document.addEventListener(type,recordSessionActivity,{passive:true,capture:true}));
+      window.addEventListener('focus',recordSessionActivity,{passive:true});
+      document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkSessionSecurity();});
+      sessionSecurity.activityBound=true;
+    }
+    sessionSecurity.idleTimer=setInterval(checkSessionSecurity,1000);
+  }
+  function stopSessionSecurity(){
+    if(sessionSecurity.idleTimer)clearInterval(sessionSecurity.idleTimer);
+    if(sessionSecurity.countdownTimer)clearInterval(sessionSecurity.countdownTimer);
+    sessionSecurity.idleTimer=null;
+    sessionSecurity.countdownTimer=null;
+    sessionSecurity.warningVisible=false;
+    if(el.idleWarningLayer)el.idleWarningLayer.classList.add('hidden');
+  }
+  function recordSessionActivity(event){
+    if(!state.user||sessionSecurity.loggingOut)return;
+    if(sessionSecurity.warningVisible){
+      const target=event&&event.target;
+      if(target&&el.idleWarningLayer&&el.idleWarningLayer.contains(target))return;
+    }
+    sessionSecurity.lastActivity=Date.now();
+  }
+  function checkSessionSecurity(){
+    if(!state.user||sessionSecurity.loggingOut)return;
+    const now=Date.now();
+    if(now-sessionStartedAt()>=absoluteSessionLimit()){
+      logout('absolute');
+      return;
+    }
+    const idleFor=now-sessionSecurity.lastActivity;
+    if(idleFor>=HOME31_SECURITY.idleLogoutMs){
+      logout('idle');
+      return;
+    }
+    if(idleFor>=HOME31_SECURITY.idleWarningMs&&!sessionSecurity.warningVisible)showIdleWarning();
+    if(sessionSecurity.warningVisible)updateIdleCountdown();
+  }
+  function showIdleWarning(){
+    sessionSecurity.warningVisible=true;
+    if(el.idleWarningLayer)el.idleWarningLayer.classList.remove('hidden');
+    updateIdleCountdown();
+    if(sessionSecurity.countdownTimer)clearInterval(sessionSecurity.countdownTimer);
+    sessionSecurity.countdownTimer=setInterval(updateIdleCountdown,1000);
+    if(el.idleStaySignedIn)el.idleStaySignedIn.focus();
+  }
+  function updateIdleCountdown(){
+    if(!sessionSecurity.warningVisible)return;
+    const remaining=Math.max(0,HOME31_SECURITY.idleLogoutMs-(Date.now()-sessionSecurity.lastActivity));
+    const totalSeconds=Math.ceil(remaining/1000);
+    const minutes=Math.floor(totalSeconds/60);
+    const seconds=String(totalSeconds%60).padStart(2,'0');
+    if(el.idleWarningCountdown)el.idleWarningCountdown.textContent=minutes+':'+seconds;
+  }
+  function continueSession(){
+    sessionSecurity.lastActivity=Date.now();
+    sessionSecurity.warningVisible=false;
+    if(sessionSecurity.countdownTimer)clearInterval(sessionSecurity.countdownTimer);
+    sessionSecurity.countdownTimer=null;
+    if(el.idleWarningLayer)el.idleWarningLayer.classList.add('hidden');
+    toast('Your HOME31 session remains active.','success');
+  }
+
   async function handleLogin(event){
     event.preventDefault();
     setLoginError('');
@@ -99,14 +215,28 @@
     const label=submit.querySelector('span');
     const originalLabel=label?label.textContent:'Sign in';
     submit.disabled=true;submit.classList.add('is-loading');if(label)label.textContent='Signing in…';
-    try{ const user=await api.signIn(el.loginEmail.value.trim(),el.loginPassword.value); await enterApp(user); }
+    try{
+      persistRememberedEmail();
+      const user=await api.signIn(el.loginEmail.value.trim(),el.loginPassword.value);
+      try{sessionStorage.setItem(HOME31_SECURITY.sessionStartedKey,String(Date.now()));}catch(error){}
+      await enterApp(user);
+    }
     catch(error){ setLoginError(error.message || 'Sign-in failed.'); }
     finally{ submit.disabled=false;submit.classList.remove('is-loading');if(label)label.textContent=originalLabel; }
   }
   function setLoginError(message){ el.loginAlert.textContent=message; el.loginAlert.classList.toggle('hidden',!message); }
-  function showLogin(){ el.loginScreen.classList.remove('hidden');el.appShell.classList.add('hidden');el.loginPassword.focus(); }
+  function showLogin(){
+    stopSessionSecurity();
+    el.loginScreen.classList.remove('hidden');
+    el.appShell.classList.add('hidden');
+    el.loginPassword.value='';
+    restoreRememberedEmail();
+    el.loginPassword.focus();
+  }
   async function enterApp(user){
     state.user=user;
+    ensureSessionStart();
+    startSessionSecurity();
     el.loginScreen.classList.add('hidden');el.appShell.classList.remove('hidden');
     el.userName.textContent=user.name;el.userRole.textContent=user.roleLabel;el.userAvatar.textContent=initials(user.name);
     state.data=await loadWithSpinner();
@@ -147,7 +277,21 @@
     el.mainNav.innerHTML=navItems.filter(n=>(n.visible!==false)&&(n.roles==='all'||n.roles.includes(state.user.role))).map(n=>`<button data-route="${n.id}" class="${routeIsActive(n)?'active':''}">${n.label}</button>`).join('');
   }
   function navigate(route){ if(!allowedRoute(route))return;state.route=route;location.hash='#/'+route;el.mainNav.classList.remove('open');render();el.pageRoot.focus(); }
-  async function logout(){ await api.signOut();state.user=null;state.data=null;el.userMenu.classList.add('hidden');showLogin();toast('You have signed out.','success'); }
+  async function logout(reason){
+    if(sessionSecurity.loggingOut)return;
+    sessionSecurity.loggingOut=true;
+    stopSessionSecurity();
+    try{await api.signOut();}finally{
+      state.user=null;state.data=null;
+      try{sessionStorage.removeItem(HOME31_SECURITY.sessionStartedKey);}catch(error){}
+      el.userMenu.classList.add('hidden');
+      showLogin();
+      const message=reason==='idle'?'You were signed out after 15 minutes of inactivity.':reason==='absolute'?'Your HOME31 session reached its security limit. Please sign in again.':'You have signed out.';
+      setLoginError(reason==='idle'||reason==='absolute'?message:'');
+      if(reason!=='idle'&&reason!=='absolute')toast(message,'success');
+      sessionSecurity.loggingOut=false;
+    }
+  }
 
   function render(){
     if(!state.data)return;
@@ -533,14 +677,14 @@
   }
 
   function managementOverviewPriority(item){
-    const level=normalizePriorityLevel(item.priorityStatus);
+    const raw=String(item.managementPriority||'').trim();
     const canonical={
-      'High':{label:'High',code:'HIGH',rank:1,filter:'high'},
-      'Medium':{label:'Medium',code:'MEDIUM',rank:2,filter:'medium'},
-      'Low':{label:'Low',code:'LOW',rank:3,filter:'low'},
-      'Not Assessed':{label:'Not Assessed',code:'NOT_ASSESSED',rank:4,filter:'not assessed'}
+      strategic:{label:'Strategic',code:'STRATEGIC',rank:1},
+      high:{label:'High',code:'HIGH',rank:2},
+      medium:{label:'Medium',code:'MEDIUM',rank:3},
+      operational:{label:'Operational',code:'OPERATIONAL',rank:4}
     };
-    return canonical[level]||canonical['Not Assessed'];
+    return canonical[raw.toLowerCase()]||{label:'Not recorded',code:'NOT_RECORDED',rank:5};
   }
   function managementOverviewSort(rows){
     const direction=state.managementOverviewDirection==='asc'?1:-1,key=state.managementOverviewSort;
@@ -589,14 +733,14 @@
 
     const query=String(state.managementAttentionSearch||'').trim().toLowerCase();
     const filteredRows=baseRows.filter(({i,issueEntries,categories})=>{
-      const priorityLevel=managementOverviewPriority(i).filter;
-      if(state.managementAttentionPriority!=='all'&&priorityLevel!==String(state.managementAttentionPriority).toLowerCase())return false;
+      const managementPriority=String(i.managementPriority||'').trim().toLowerCase()||'not recorded';
+      if(state.managementAttentionPriority!=='all'&&managementPriority!==String(state.managementAttentionPriority).toLowerCase())return false;
       if(state.managementAttentionIssue!=='all'&&!categories.has(state.managementAttentionIssue))return false;
       const itemDepartment=String(i.departmentId||i.departmentName||'unassigned');
       if(state.managementAttentionDepartment!=='all'&&itemDepartment!==String(state.managementAttentionDepartment))return false;
       if(state.managementAttentionType!=='all'&&i.sourceType!==state.managementAttentionType)return false;
       if(query){
-        const searchable=[i.title,i.code,i.projectOwner||i.owner,i.departmentName,i.year,i.sourceType,managementOverviewPriority(i).label,...issueEntries.map(entry=>entry.label)].join(' ').toLowerCase();
+        const searchable=[i.title,i.code,i.projectOwner||i.owner,i.departmentName,i.year,i.sourceType,i.managementPriority,...issueEntries.map(entry=>entry.label)].join(' ').toLowerCase();
         if(!searchable.includes(query))return false;
       }
       return true;
@@ -620,7 +764,7 @@
 
     return `<section class="card table-card executive-attention-table management-overview-panel">
       <div class="table-header management-overview-heading">
-        <div><strong>Management Overview</strong><span class="dashboard-table-note">Priority Level uses the saved initiative value: High, Medium, Low or Not Assessed. Linked projects inherit the Priority Level from their parent initiative.</span></div>
+        <div><strong>Management Overview</strong><span class="dashboard-table-note">Management Priority uses the saved initiative dropdown value: Strategic, High, Medium or Operational. Blank records are shown as Not recorded.</span></div>
         <div class="management-overview-tools"><span class="badge ${filteredRows.length?'amber':'green'}">${filteredRows.length} of ${baseRows.length} records</span><label><span>Rows</span><select data-management-overview-page-size><option value="5" ${pageSize===5?'selected':''}>5</option><option value="10" ${pageSize===10?'selected':''}>10</option><option value="15" ${pageSize===15?'selected':''}>15</option></select></label></div>
       </div>
       <div class="priority-issues-summary" aria-label="Management overview summary">
@@ -631,14 +775,14 @@
       </div>
       <div class="management-attention-filters">
         <label class="management-attention-search"><span>Search Management Overview</span><input type="search" data-management-attention-search value="${escapeAttr(state.managementAttentionSearch||'')}" placeholder="Project, owner, department or code"></label>
-        <label><span>Priority Level</span><select data-management-attention-filter="priority"><option value="all" ${state.managementAttentionPriority==='all'?'selected':''}>All priority levels</option><option value="high" ${state.managementAttentionPriority==='high'?'selected':''}>High</option><option value="medium" ${state.managementAttentionPriority==='medium'?'selected':''}>Medium</option><option value="low" ${state.managementAttentionPriority==='low'?'selected':''}>Low</option><option value="not assessed" ${state.managementAttentionPriority==='not assessed'?'selected':''}>Not Assessed</option></select></label>
+        <label><span>Management priority</span><select data-management-attention-filter="priority"><option value="all" ${state.managementAttentionPriority==='all'?'selected':''}>All management priorities</option><option value="strategic" ${state.managementAttentionPriority==='strategic'?'selected':''}>Strategic</option><option value="high" ${state.managementAttentionPriority==='high'?'selected':''}>High</option><option value="medium" ${state.managementAttentionPriority==='medium'?'selected':''}>Medium</option><option value="operational" ${state.managementAttentionPriority==='operational'?'selected':''}>Operational</option><option value="not recorded" ${state.managementAttentionPriority==='not recorded'?'selected':''}>Not recorded</option></select></label>
         <label><span>Attention type</span><select data-management-attention-filter="issue"><option value="all" ${state.managementAttentionIssue==='all'?'selected':''}>All attention types</option><option value="delivery" ${state.managementAttentionIssue==='delivery'?'selected':''}>Delivery condition</option><option value="overdue" ${state.managementAttentionIssue==='overdue'?'selected':''}>Overdue</option><option value="decision" ${state.managementAttentionIssue==='decision'?'selected':''}>Decision required</option><option value="next-action" ${state.managementAttentionIssue==='next-action'?'selected':''}>Next action missing</option><option value="ownership" ${state.managementAttentionIssue==='ownership'?'selected':''}>Owner missing</option><option value="target" ${state.managementAttentionIssue==='target'?'selected':''}>Target date missing</option></select></label>
         <label><span>Department</span><select data-management-attention-filter="department"><option value="all">All visible departments</option>${departmentRows.map(department=>`<option value="${escapeAttr(department.id)}" ${String(state.managementAttentionDepartment)===department.id?'selected':''}>${escapeHtml(department.name)}</option>`).join('')}</select></label>
         <label><span>Record type</span><select data-management-attention-filter="type"><option value="all" ${state.managementAttentionType==='all'?'selected':''}>Initiatives + Projects</option><option value="INITIATIVE" ${state.managementAttentionType==='INITIATIVE'?'selected':''}>Initiatives only</option><option value="PROJECT" ${state.managementAttentionType==='PROJECT'?'selected':''}>Projects only</option></select></label>
         <button class="btn outline compact" data-action="management-attention-reset" ${activeFilters?'':'disabled'}>Reset filters</button>
       </div>
       <div class="table-wrap management-overview-table-wrap"><table class="management-overview-table"><thead><tr>
-        <th class="management-sortable${managementOverviewSortClass('priority')}" data-action="management-overview-sort" data-sort="priority">Priority Level</th>
+        <th class="management-sortable${managementOverviewSortClass('priority')}" data-action="management-overview-sort" data-sort="priority">Management Priority</th>
         <th class="management-sortable management-sticky-project${managementOverviewSortClass('name')}" data-action="management-overview-sort" data-sort="name">Initiative / Project</th>
         <th class="management-sortable${managementOverviewSortClass('owner')}" data-action="management-overview-sort" data-sort="owner">Owner</th>
         <th class="management-sortable${managementOverviewSortClass('department')}" data-action="management-overview-sort" data-sort="department">Department</th>
