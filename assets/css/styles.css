@@ -890,3 +890,17 @@ button,input,select,textarea,table,th,td{font-family:var(--font)}
 @media(max-width:900px){.cinematic-login{grid-template-columns:1fr}.login-story-panel{min-height:42vh;padding:32px 24px}.cinematic-copy h1{font-size:46px}.cinematic-copy p{font-size:16px}.cinematic-metrics{display:none}.cinematic-network{width:440px;right:-120px;top:4%;opacity:.35}.cinematic-form-panel{padding:18px 18px 34px;background:linear-gradient(180deg,transparent,rgba(3,15,25,.76) 24%)}.cinematic-card{width:min(520px,100%)}}
 @media(max-width:560px){.login-story-panel{min-height:34vh}.cinematic-brand small{display:none}.cinematic-copy h1{font-size:38px}.cinematic-copy p{font-size:14px}.cinematic-network{display:none}.cinematic-card{padding:26px 22px}.login-heading h2{font-size:26px}.cinematic-grid{opacity:.45}}
 @media(prefers-reduced-motion:reduce){.cinematic-login *, .cinematic-login *::before,.cinematic-login *::after{animation:none!important;transition:none!important}.login-particle-canvas{display:none}.cinematic-grid{transform:none;opacity:.25}}
+
+
+/* HOME31 V9.5.3 — Frontend-only session security */
+.login-remember{display:flex;align-items:center;gap:9px;margin:2px 0 8px;color:#405167;font-size:11px;font-weight:750;cursor:pointer}
+.login-remember input{width:16px;height:16px;accent-color:var(--teal-700)}
+.login-timeout-note{margin:0 0 14px!important;color:var(--muted);font-size:10px!important;line-height:1.45}
+.idle-warning-layer{position:fixed;inset:0;z-index:190;display:grid;place-items:center;padding:20px;background:rgba(4,19,31,.68);backdrop-filter:blur(6px)}
+.idle-warning-card{width:min(440px,100%);padding:28px;border:1px solid rgba(255,255,255,.5);border-radius:22px;background:#fff;box-shadow:0 34px 90px rgba(0,0,0,.35);text-align:center}
+.idle-warning-icon{display:grid;place-items:center;width:58px;height:58px;margin:0 auto 14px;border-radius:17px;background:#fff4df;color:var(--amber-600);font-size:26px}
+.idle-warning-card h2{margin:8px 0 10px;font-size:24px;letter-spacing:-.03em}
+.idle-warning-card p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
+.idle-warning-card p strong{color:var(--red-600);font-size:17px}
+.idle-warning-actions{display:flex;justify-content:center;gap:9px;margin-top:22px}
+@media(max-width:520px){.idle-warning-actions{flex-direction:column-reverse}.idle-warning-actions .btn{width:100%}}
